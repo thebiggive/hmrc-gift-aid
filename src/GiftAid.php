@@ -587,21 +587,26 @@ class GiftAid extends GovTalk
      * Submit a GA Claim - this is the crux of the biscuit.
      *
      * @param array $donor_data
+     * @return array|bool   Processed response array, or false if initial validation failed.
      */
     public function giftAidSubmit($donor_data)
     {
-        $cChardId      = $this->getClaimingOrganisation()->getHmrcRef();
-        $cOrganisation = 'IR';
-
         $dReturnPeriod = $this->getClaimToDate();
-
-        $sDefaultCurrency = 'GBP'; // currently HMRC only allows GBP
-        $sIRmark          = 'IRmark+Token';
-        $sSender          = 'Individual';
-
-        if ($this->getAuthorisedOfficial() == null) {
+        if (empty($dReturnPeriod)) {
+            $this->logger->error('Cannot proceed without claimToDate');
             return false;
         }
+
+        if ($this->getAuthorisedOfficial() === null) {
+            $this->logger->error('Cannot proceed without authorisedOfficial');
+            return false;
+        }
+
+        $cChardId           = $this->getClaimingOrganisation()->getHmrcRef();
+        $cOrganisation      = 'IR';
+        $sDefaultCurrency   = 'GBP'; // currently HMRC only allows GBP
+        $sIRmark            = 'IRmark+Token';
+        $sSender            = 'Individual';
 
         // Set the message envelope
         $this->setMessageClass('HMRC-CHAR-CLM');
