@@ -292,6 +292,7 @@ class GiftAidTest extends TestCase
 
         $this->gaService->setAuthorisedOfficial($this->officer);
         $this->gaService->setClaimingOrganisation($this->claimant);
+        $this->gaService->setClaimToDate('2000-01-01');
         $response = $this->gaService->giftAidSubmit($this->claim);
 
         $this->assertArrayHasKey('errors', $response);
@@ -310,6 +311,7 @@ class GiftAidTest extends TestCase
 
         $this->gaService->setAuthorisedOfficial($this->officer);
         $this->gaService->setClaimingOrganisation($this->claimant);
+        $this->gaService->setClaimToDate('2000-01-01');
         $response = $this->gaService->giftAidSubmit($this->claim);
 
         $this->assertArrayNotHasKey('errors', $response);
