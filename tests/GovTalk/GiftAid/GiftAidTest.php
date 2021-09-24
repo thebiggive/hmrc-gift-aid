@@ -133,7 +133,7 @@ class GiftAidTest extends TestCase
     public function testServiceCreation()
     {
         $this->gaService->setAgentDetails('company', ['ln1','ln2','pc'], ['07123456789']);
-        $this->assertInstanceOf('GovTalk\GiftAid\GiftAid', $this->gaService);
+        $this->assertInstanceOf(GiftAid::class, $this->gaService);
     }
 
     public function testCharityId()
@@ -320,6 +320,49 @@ class GiftAidTest extends TestCase
         $this->assertArrayHasKey('endpoint', $response);
         $this->assertArrayHasKey('interval', $response);
         $this->assertSame('A19FA1A31BCB42D887EA323292AACD88', $response['correlationid']);
+    }
+
+    public function testMultiClaimSubmissionAck(): void
+    {
+        $this->setMockHttpResponse('SubmitMultiAckResponse.txt');
+        $this->gaService = $this->setUpService(); // Use client w/ mock queue.
+
+        $this->gaService->setAuthorisedOfficial($this->officer);
+        $this->gaService->setClaimingOrganisation($this->claimant);
+        $this->gaService->setClaimToDate('2000-01-01');
+
+        $agentContact = [
+            'name' => [
+                'title' => 'Mx',
+                'forename' => 'Billie',
+                'surname' => 'Bravo',
+            ],
+            'email' => 'billie@example.org',
+        ];
+        $this->gaService->setAgentDetails(
+            'AgentCo',
+            [
+                'line' => [
+                    'AgentAddr 1',
+                    'AgentAddr 2',
+                ],
+            ],
+            $agentContact
+        );
+
+        $this->gaService->addClaimingOrganisation($this->claimant);
+        $claim = $this->claim;
+        foreach ($claim as $index => $donation) {
+            $claim[$index]['org_hmrc_ref'] = $this->claimant->getHmrcRef();
+        }
+
+        $response = $this->gaService->giftAidSubmit($claim);
+
+        $this->assertArrayNotHasKey('errors', $response);
+        $this->assertArrayHasKey('correlationid', $response);
+        $this->assertArrayHasKey('endpoint', $response);
+        $this->assertArrayHasKey('interval', $response);
+        $this->assertSame('A29FA1A31BCB42D887EA323292AACD89', $response['correlationid']);
     }
 
     public function testDeclarationResponsePoll()

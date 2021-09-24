@@ -33,10 +33,11 @@ class GiftAid extends GovTalk
 
     /**
      * Vendor ID of software vendor
-     *
-     * @var string
      */
-    private $vendorId = '';
+    private string $vendorId = '';
+
+    private static string $singleClaimMessageClass = 'HMRC-CHAR-CLM';
+    private static string $multiClaimMessageClass = 'HMRC-CHAR-CLM-MULTI';
 
     /**
      * URI for product submitting the claim
@@ -60,11 +61,13 @@ class GiftAid extends GovTalk
     private $productVersion = '';
 
     /**
-     * Details of the agent sending the return declaration.
+     * Details of the agent sending the return declaration, if applicable.
+     * Leads us to assume we should authenticate as Agent and change the message
+     * type to be multi-claim if non-emtpy.
      *
-     * @var string
+     * @var string|array[]
      */
-    private $agentDetails = [];
+    private array $agentDetails = [];
 
     /* System / internal variables. */
 
@@ -78,7 +81,7 @@ class GiftAid extends GovTalk
     /* Variables for storing claim details */
 
     /**
-     * Adjustments
+     * Adjustments. Only support for single claims for now.
      */
     private $gaAdjustment = 0.00;
     private $gaAdjReason  = '';
@@ -90,9 +93,12 @@ class GiftAid extends GovTalk
     private $communityBuildings = false;
 
     /**
-     * Claiming organisation
+     * @var ClaimingOrganisation[]  Claiming organisation(s), keyed on HMRC ref.
+     *
+     * Can be replaced with one using { @see GiftAid::setClaimingOrganisation() } or added
+     * to with { @see GiftAid::addClaimingOrganisation() } for multi-claims.
      */
-    private $claimingOrganisation = null;
+    private array $claimingOrganisations = [];
 
     /**
      * Authorised official
@@ -226,12 +232,12 @@ class GiftAid extends GovTalk
         $this->getClaimingOrganisation()->setHmrcRef($value);
     }
 
-    public function getVendorId()
+    public function getVendorId(): string
     {
         return $this->vendorId;
     }
 
-    public function setVendorId($value)
+    public function setVendorId(string $value): void
     {
         $this->vendorId = $value;
     }
@@ -311,14 +317,23 @@ class GiftAid extends GovTalk
         }
     }
 
-    public function getClaimingOrganisation()
+    public function getClaimingOrganisation(?string $hmrcRef = null): ?ClaimingOrganisation
     {
-        return $this->claimingOrganisation;
+        if ($hmrcRef === null) {
+            return reset($this->claimingOrganisations) ?: null;
+        }
+
+        return $this->claimingOrganisations[$hmrcRef] ?? null;
     }
 
-    public function setClaimingOrganisation(ClaimingOrganisation $value)
+    public function setClaimingOrganisation(ClaimingOrganisation $organisation)
     {
-        $this->claimingOrganisation = $value;
+        $this->claimingOrganisations = [$organisation->getHmrcRef() => $organisation];
+    }
+
+    public function addClaimingOrganisation(ClaimingOrganisation $organisation)
+    {
+        $this->claimingOrganisations[$organisation->getHmrcRef()] = $organisation;
     }
 
     public function getAuthorisedOfficial()
@@ -417,12 +432,13 @@ class GiftAid extends GovTalk
      *   telephone => Contact's telephone number (optional).
      *   fax => Contact's fax number (optional).
      *
-     * @param string $company   The agent company's name.
-     * @param array  $address   The agent company's address in the format specified above.
-     * @param array  $contact   The agent company's key contact (optional, may be skipped with a null value).
-     * @param string $reference An identifier for the agent's own reference (optional).
+     * @param string    $company    The agent company's name.
+     * @param array     $address    The agent company's address in the format specified above.
+     * @param ?array    $contact    The agent company's key contact (optional, may be skipped with a null value).
+     * @param ?string   $reference  An identifier for the agent's own reference (optional).
+     * @return bool                 Whether company format was as expected & agent data was set.
      */
-    public function setAgentDetails($company, array $address, array $contact = null, $reference = null)
+    public function setAgentDetails(string $company, array $address, ?array $contact = null, ?string $reference = null): bool
     {
         if (preg_match('/[A-Za-z0-9 &\'\(\)\*,\-\.\/]*/', $company)) {
             $this->agentDetails['company'] = $company;
@@ -436,6 +452,8 @@ class GiftAid extends GovTalk
             if (($reference !== null) && preg_match('/[A-Za-z0-9 &\'\(\)\*,\-\.\/]*/', $reference)) {
                 $this->agentDetails['reference'] = $reference;
             }
+
+            return true;
         } else {
             return false;
         }
@@ -456,6 +474,7 @@ class GiftAid extends GovTalk
      * 'sponsored' - set to true if this money is for a sponsored event
      * 'aggregation' - description of aggregated donations - else leave empty
      * 'amount'
+     * 'org_hmrc_ref' – required for Agent multi-charity claims. Ignored for others.
      *
      * @param array $donor_data
      */
@@ -465,24 +484,42 @@ class GiftAid extends GovTalk
         $package->openMemory();
         $package->setIndent(true);
 
-        $package->startElement('Claim');
-        $package->writeElement('OrgName', $this->getClaimingOrganisation()->getName());
-        $package->writeElement('HMRCref', $this->getClaimingOrganisation()->getHmrcRef());
-
-        $package->startElement('Regulator');
-        $package->writeElement('RegName', $this->getClaimingOrganisation()->getRegulator());
-        $package->writeElement('RegNo', $this->getClaimingOrganisation()->getRegNo());
-        $package->endElement(); # Regulator
-
-        $package->startElement('Repayment');
+        $currentClaimOrgRef = null;
+        $claimOpen = false;
         $earliestDate = strtotime(date('Y-m-d'));
+
         foreach ($donor_data as $d) {
+            // In single charity mode, always set up Claim header for the only claiming org.
+            if (!$this->isAgentMultiClaim()) {
+                $d['org_hmrc_ref'] = $this->getClaimingOrganisation()->getHmrcRef();
+            }
+
+            if (!$claimOpen || $currentClaimOrgRef !== $d['org_hmrc_ref']) {
+                // New or first charity in a claim.
+                if ($claimOpen) {
+                    $this->writeClaimEndData($package, $earliestDate);
+                    $claimOpen = false;
+                }
+
+                $earliestDate = strtotime(date('Y-m-d'));
+
+                /** @var ClaimingOrganisation $org */
+                $org = $this->getClaimingOrganisation($d['org_hmrc_ref']);
+                if (!$org) {
+                    $this->logger->warning('Skipping donation with unknown org ref ' . $d['org_hmrc_ref']);
+                    continue;
+                }
+
+                $this->writeClaimStartData($package, $org);
+                $claimOpen = true;
+            }
+
             if (isset($d['donation_date'])) {
                 $dDate        = strtotime($d['donation_date']);
                 $earliestDate = ($dDate < $earliestDate) ? $dDate : $earliestDate;
             }
             $package->startElement('GAD');
-            if (!isset($d['aggregation']) or empty($d['aggregation'])) {
+            if (!isset($d['aggregation']) || empty($d['aggregation'])) {
                 $package->startElement('Donor');
                 $person = new Individual(
                     $d['title'],
@@ -513,72 +550,21 @@ class GiftAid extends GovTalk
                     $package->writeElement('Overseas', $overseas);
                 }
                 $package->endElement(); # Donor
-            } elseif (!empty($d['aggregation'])) {
+            } else { // 'aggregation' non-empty
                 $package->writeElement('AggDonation', $d['aggregation']);
             }
-            if (isset($d['sponsored']) and $d['sponsored'] === true) {
+            if (isset($d['sponsored']) && $d['sponsored'] === true) {
                 $package->writeElement('Sponsored', 'yes');
             }
             $package->writeElement('Date', $d['donation_date']);
             $package->writeElement('Total', number_format($d['amount'], 2, '.', ''));
             $package->endElement(); # GAD
         }
-        $package->writeElement('EarliestGAdate', date('Y-m-d', $earliestDate));
 
-        if (!empty($this->gaAdjustment)) {
-            $package->writeElement('Adjustment', number_format($this->gaAdjustment, 2, '.', ''));
+        if ($claimOpen) {
+            // End of last claim in the loop.
+            $this->writeClaimEndData($package, $earliestDate);
         }
-        $package->endElement(); # Repayment
-
-        $package->startElement('GASDS');
-        $package->writeElement(
-            'ConnectedCharities',
-            $this->getClaimingOrganisation()->getHasConnectedCharities() ? 'yes' : 'no'
-        );
-        foreach ($this->getClaimingOrganisation()->getConnectedCharities() as $cc) {
-            $package->startElement('Charity');
-            $package->writeElement('Name', $cc->getName());
-            $package->writeElement('HMRCref', $cc->getHmrcRef());
-            $package->endElement(); # Charity
-        }
-        foreach ($this->gasdsYear as $key => $val) {
-            $package->startElement('GASDSClaim');
-            $package->writeElement('Year', $this->gasdsYear[$key]);
-            $package->writeElement('Amount', number_format($this->gasdsAmount[$key], 2, '.', ''));
-            $package->endElement(); # GASDSClaim
-        }
-
-        $package->writeElement('CommBldgs', ($this->haveCbcd == true) ? 'yes' : 'no');
-        foreach ($this->cbcdAddr as $key => $val) {
-            $package->startElement('Building');
-            $package->writeElement('BldgName', $this->cbcdBldg[$key]);
-            $package->writeElement('Address', $this->cbcdAddr[$key]);
-            $package->writeElement('Postcode', $this->cbcdPoCo[$key]);
-            $package->startElement('BldgClaim');
-            $package->writeElement('Year', $this->cbcdYear[$key]);
-            $package->writeElement('Amount', number_format($this->cbcdAmount[$key], 2, '.', ''));
-            $package->endElement(); # BldgClaim
-            $package->endElement(); # Building
-        }
-
-        if (!empty($this->gasdsAdjustment)) {
-            $package->writeElement('Adj', number_format($this->gasdsAdjustment, 2, '.', ''));
-        }
-
-        $package->endElement(); # GASDS
-
-        $otherInfo = [];
-        if (!empty($this->gasdsAdjustment)) {
-            $otherInfo[] = $this->gasdsAdjReason;
-        }
-        if (!empty($this->gaAdjustment)) {
-            $otherInfo[] = $this->gaAdjReason;
-        }
-        if (count($otherInfo) > 0) {
-            $package->writeElement('OtherInfo', implode(' AND ', $otherInfo));
-        }
-
-        $package->endElement(); # Claim
 
         return $package->outputMemory();
     }
@@ -606,17 +592,17 @@ class GiftAid extends GovTalk
         $cOrganisation      = 'IR';
         $sDefaultCurrency   = 'GBP'; // currently HMRC only allows GBP
         $sIRmark            = 'IRmark+Token';
-        $sSender            = 'Individual';
+        $sSender            = $this->isAgentMultiClaim() ? 'Agent' : 'Individual';
 
         // Set the message envelope
-        $this->setMessageClass('HMRC-CHAR-CLM');
+        $this->setMessageClass($this->getMessageClass());
         $this->setMessageQualifier('request');
         $this->setMessageFunction('submit');
         $this->setMessageCorrelationId(null);
         $this->setMessageTransformation('XML');
         $this->addTargetOrganisation($cOrganisation);
 
-        $this->addMessageKey('CHARID', $cChardId);
+        $this->addMessageKey($this->getCharIdKey(), $cChardId);
 
         $this->addChannelRoute(
             $this->getProductUri(),
@@ -635,10 +621,62 @@ class GiftAid extends GovTalk
         $package->startElement('IRheader');
         $package->startElement('Keys');
         $package->startElement('Key');
-        $package->writeAttribute('Type', 'CHARID');
+        $package->writeAttribute('Type', $this->getCharIdKey());
         $package->text($cChardId);
         $package->endElement(); # Key
         $package->endElement(); # Keys
+
+        if ($this->isAgentMultiClaim()) {
+            $package->startElement('Agent');
+
+            $package->writeElement('Company', $this->agentDetails['company']);
+
+            $package->startElement('Address');
+            if (!empty($this->agentDetails['address']['line'])) {
+                foreach ($this->agentDetails['address']['line'] as $line) {
+                    $package->writeElement('Line', $line);
+                }
+            }
+            if (!empty($this->agentDetails['address']['postcode'])) {
+                $package->writeElement('PostCode', $this->agentDetails['address']['postcode']);
+            }
+            // Has a fallback default, so should always be set.
+            $package->writeElement('Country', $this->agentDetails['address']['country']);
+            $package->endElement(); // Address
+
+            if (isset($this->agentDetails['contact'])) {
+                $package->startElement('Contact');
+
+                $package->startElement('Name');
+                if (!empty($this->agentDetails['contact']['title'])) {
+                    $package->writeElement('Ttl', $this->agentDetails['contact']['name']['title']);
+                }
+                $package->writeElement('Fore', $this->agentDetails['contact']['name']['forename']);
+                $package->writeElement('Sur', $this->agentDetails['contact']['name']['surname']);
+                $package->endElement(); // Name
+
+                if (!empty($this->agentDetails['contact']['email'])) {
+                    $package->writeElement('Email', $this->agentDetails['contact']['email']);
+                }
+
+                if (!empty($this->agentDetails['contact']['telephone'])) {
+                    $package->startElement('Telephone');
+                    $package->writeElement('Number', $this->agentDetails['contact']['telephone']);
+                    $package->endElement(); // Telephone
+                }
+
+                if (!empty($this->agentDetails['contact']['fax'])) {
+                    $package->startElement('Fax');
+                    $package->writeElement('Number', $this->agentDetails['contact']['fax']);
+                    $package->endElement(); // Fax
+                }
+
+                $package->endElement(); // Contact
+            }
+
+            $package->endElement(); // Agent
+        }
+
         $package->writeElement('PeriodEnd', $dReturnPeriod);
         $package->writeElement('DefaultCurrency', $sDefaultCurrency);
         $package->startElement('IRmark');
@@ -698,7 +736,7 @@ class GiftAid extends GovTalk
      */
     public function requestClaimData()
     {
-        $this->setMessageClass('HMRC-CHAR-CLM');
+        $this->setMessageClass($this->getMessageClass());
         $this->setMessageQualifier('request');
         $this->setMessageFunction('list');
         $this->setMessageCorrelationId('');
@@ -706,7 +744,7 @@ class GiftAid extends GovTalk
 
         $this->addTargetOrganisation('IR');
 
-        $this->addMessageKey('CHARID', $this->getClaimingOrganisation()->getHmrcRef());
+        $this->addMessageKey($this->getCharIdKey(), $this->getClaimingOrganisation()->getHmrcRef());
 
         $this->addChannelRoute(
             $this->getProductUri(),
@@ -776,7 +814,7 @@ class GiftAid extends GovTalk
             if ($pollUrl !== null) {
                 $this->setGovTalkServer($pollUrl);
             }
-            $this->setMessageClass('HMRC-CHAR-CLM');
+            $this->setMessageClass($this->getMessageClass());
             $this->setMessageQualifier('poll');
             $this->setMessageFunction('submit');
             $this->setMessageTransformation('XML');
@@ -838,6 +876,101 @@ class GiftAid extends GovTalk
         $package = str_replace('IRmark+Token', $irMark, $package);
 
         return $package;
+    }
+
+    protected function isAgentMultiClaim(): bool
+    {
+        return !empty($this->agentDetails);
+    }
+
+    /**
+     * @link https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/735545/Charities-OnlineValidsV1.3.pdf
+     */
+    protected function getMessageClass(): string
+    {
+        return $this->isAgentMultiClaim() ? static::$multiClaimMessageClass : static::$singleClaimMessageClass;
+    }
+
+    /**
+     * @link https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/735545/Charities-OnlineValidsV1.3.pdf
+     */
+    protected function getCharIdKey(): string
+    {
+        return $this->isAgentMultiClaim() ? 'AGENTCHARID' : 'CHARID';
+    }
+
+    protected function writeClaimStartData(XMLWriter $package, ClaimingOrganisation $org): void
+    {
+        $package->startElement('Claim');
+        $package->writeElement('OrgName', $org->getName());
+        $package->writeElement('HMRCref', $org->getHmrcRef());
+
+        $package->startElement('Regulator');
+        $package->writeElement('RegName', $org->getRegulator());
+        $package->writeElement('RegNo', $org->getRegNo());
+        $package->endElement(); # Regulator
+
+        $package->startElement('Repayment');
+    }
+
+    protected function writeClaimEndData(XMLWriter $package, $earliestDate): void
+    {
+        $package->writeElement('EarliestGAdate', date('Y-m-d', $earliestDate));
+
+        if (!empty($this->gaAdjustment)) {
+            $package->writeElement('Adjustment', number_format($this->gaAdjustment, 2, '.', ''));
+        }
+        $package->endElement(); # Repayment
+
+        $package->startElement('GASDS');
+        $package->writeElement(
+            'ConnectedCharities',
+            $this->getClaimingOrganisation()->getHasConnectedCharities() ? 'yes' : 'no'
+        );
+        foreach ($this->getClaimingOrganisation()->getConnectedCharities() as $cc) {
+            $package->startElement('Charity');
+            $package->writeElement('Name', $cc->getName());
+            $package->writeElement('HMRCref', $cc->getHmrcRef());
+            $package->endElement(); # Charity
+        }
+        foreach ($this->gasdsYear as $key => $val) {
+            $package->startElement('GASDSClaim');
+            $package->writeElement('Year', $this->gasdsYear[$key]);
+            $package->writeElement('Amount', number_format($this->gasdsAmount[$key], 2, '.', ''));
+            $package->endElement(); # GASDSClaim
+        }
+
+        $package->writeElement('CommBldgs', ($this->haveCbcd == true) ? 'yes' : 'no');
+        foreach ($this->cbcdAddr as $key => $val) {
+            $package->startElement('Building');
+            $package->writeElement('BldgName', $this->cbcdBldg[$key]);
+            $package->writeElement('Address', $this->cbcdAddr[$key]);
+            $package->writeElement('Postcode', $this->cbcdPoCo[$key]);
+            $package->startElement('BldgClaim');
+            $package->writeElement('Year', $this->cbcdYear[$key]);
+            $package->writeElement('Amount', number_format($this->cbcdAmount[$key], 2, '.', ''));
+            $package->endElement(); # BldgClaim
+            $package->endElement(); # Building
+        }
+
+        if (!empty($this->gasdsAdjustment)) {
+            $package->writeElement('Adj', number_format($this->gasdsAdjustment, 2, '.', ''));
+        }
+
+        $package->endElement(); # GASDS
+
+        $otherInfo = [];
+        if (!empty($this->gasdsAdjustment)) {
+            $otherInfo[] = $this->gasdsAdjReason;
+        }
+        if (!empty($this->gaAdjustment)) {
+            $otherInfo[] = $this->gaAdjReason;
+        }
+        if (count($otherInfo) > 0) {
+            $package->writeElement('OtherInfo', implode(' AND ', $otherInfo));
+        }
+
+        $package->endElement(); # Claim
     }
 
     /**
