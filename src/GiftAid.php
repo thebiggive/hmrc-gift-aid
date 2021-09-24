@@ -438,8 +438,12 @@ class GiftAid extends GovTalk
      * @param ?string   $reference  An identifier for the agent's own reference (optional).
      * @return bool                 Whether company format was as expected & agent data was set.
      */
-    public function setAgentDetails(string $company, array $address, ?array $contact = null, ?string $reference = null): bool
-    {
+    public function setAgentDetails(
+        string $company,
+        array $address,
+        ?array $contact = null,
+        ?string $reference = null
+    ): bool {
         if (preg_match('/[A-Za-z0-9 &\'\(\)\*,\-\.\/]*/', $company)) {
             $this->agentDetails['company'] = $company;
             $this->agentDetails['address'] = $address;
