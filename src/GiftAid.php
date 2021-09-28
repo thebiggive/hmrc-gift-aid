@@ -482,7 +482,7 @@ class GiftAid extends GovTalk
      *
      * @param array $donor_data
      */
-    private function buildClaimXml($donor_data)
+    private function buildClaimXml(array $donor_data): string
     {
         $package = new XMLWriter();
         $package->openMemory();
@@ -492,10 +492,19 @@ class GiftAid extends GovTalk
         $claimOpen = false;
         $earliestDate = strtotime(date('Y-m-d'));
 
-        foreach ($donor_data as $d) {
+        foreach ($donor_data as $index => $d) {
             // In single charity mode, always set up Claim header for the only claiming org.
             if (!$this->isAgentMultiClaim()) {
                 $d['org_hmrc_ref'] = $this->getClaimingOrganisation()->getHmrcRef();
+                if (empty($d['org_hmrc_ref'])) {
+                    $this->logger->warning(sprintf(
+                        'Skipping donation index %d (%s %s) with no org ref in agent multi mode',
+                        $index,
+                        $d['first_name'],
+                        $d['last_name'],
+                    ));
+                    continue;
+                }
             }
 
             if (!$claimOpen || $currentClaimOrgRef !== $d['org_hmrc_ref']) {
