@@ -190,6 +190,12 @@ class GiftAid extends GovTalk
         $this->setLogger($this->logger);
     }
 
+    public function setLogger(LoggerInterface $logger): void
+    {
+        $this->logger = $logger;
+        parent::setLogger($logger);
+    }
+
     /**
      * Find out which endpoint to use.
      *
