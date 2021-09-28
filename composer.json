@@ -41,6 +41,7 @@
         "ext-dom": "*",
         "ext-simplexml": "*",
         "ext-xmlwriter": "*",
+        "ext-zlib": "*",
         "thebiggive/php-govtalk": "^1.0.0-beta3"
     },
     "require-dev": {
