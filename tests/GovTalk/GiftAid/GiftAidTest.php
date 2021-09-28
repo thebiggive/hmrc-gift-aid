@@ -132,7 +132,7 @@ class GiftAidTest extends TestCase
 
     public function testServiceCreation()
     {
-        $this->gaService->setAgentDetails('company', ['ln1','ln2','pc'], ['07123456789']);
+        $this->gaService->setAgentDetails('11111222223333', 'company', ['ln1','ln2','pc'], ['07123456789']);
         $this->assertInstanceOf(GiftAid::class, $this->gaService);
     }
 
@@ -340,6 +340,7 @@ class GiftAidTest extends TestCase
             'email' => 'billie@example.org',
         ];
         $this->gaService->setAgentDetails(
+            '11111222223333',
             'AgentCo',
             [
                 'line' => [
