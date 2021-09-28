@@ -448,7 +448,7 @@ class GiftAid extends GovTalk
             $this->agentDetails['company'] = $company;
             $this->agentDetails['address'] = $address;
             if (!isset($this->agentDetails['address']['country'])) {
-                $this->agentDetails['address']['country'] = 'England';
+                $this->agentDetails['address']['country'] = 'United Kingdom';
             }
             if ($contact !== null) {
                 $this->agentDetails['contact'] = $contact;
