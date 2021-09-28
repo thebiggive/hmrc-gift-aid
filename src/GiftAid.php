@@ -499,9 +499,7 @@ class GiftAid extends GovTalk
         $earliestDate = strtotime(date('Y-m-d'));
 
         foreach ($donor_data as $index => $d) {
-            // In single charity mode, always set up Claim header for the only claiming org.
-            if (!$this->isAgentMultiClaim()) {
-                $d['org_hmrc_ref'] = $this->getClaimingOrganisation()->getHmrcRef();
+            if ($this->isAgentMultiClaim()) {
                 if (empty($d['org_hmrc_ref'])) {
                     $this->logger->warning(sprintf(
                         'Skipping donation index %d (%s %s) with no org ref in agent multi mode',
@@ -511,6 +509,9 @@ class GiftAid extends GovTalk
                     ));
                     continue;
                 }
+            } else {
+                // In single charity mode, always set up Claim header for the only claiming org.
+                $d['org_hmrc_ref'] = $this->getClaimingOrganisation()->getHmrcRef();
             }
 
             if (!$claimOpen || $currentClaimOrgRef !== $d['org_hmrc_ref']) {
@@ -644,6 +645,7 @@ class GiftAid extends GovTalk
         $package->text($cChardId);
         $package->endElement(); # Key
         $package->endElement(); # Keys
+        $package->writeElement('PeriodEnd', $dReturnPeriod);
 
         if ($this->isAgentMultiClaim()) {
             $package->startElement('Agent');
@@ -696,7 +698,6 @@ class GiftAid extends GovTalk
             $package->endElement(); // Agent
         }
 
-        $package->writeElement('PeriodEnd', $dReturnPeriod);
         $package->writeElement('DefaultCurrency', $sDefaultCurrency);
         $package->startElement('IRmark');
         $package->writeAttribute('Type', 'generic');
@@ -722,7 +723,7 @@ class GiftAid extends GovTalk
         $package->endElement(); #AuthOfficial
         $package->writeElement('Declaration', 'yes');
 
-        $claimDataXml = $this->buildClaimXml($donor_data, false);
+        $claimDataXml = $this->buildClaimXml($donor_data);
         if ($this->compress == true) {
             $package->startElement('CompressedPart');
             $package->writeAttribute('Type', 'gzip');
