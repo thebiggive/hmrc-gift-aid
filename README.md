@@ -32,6 +32,9 @@ And run composer to update your dependencies:
 $ curl -s http://getcomposer.org/installer | php
 $ php composer.phar update
 
+## Test
+
+    composer run test
 
 ## Some notes on the library and Data Persistance
 
