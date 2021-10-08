@@ -784,7 +784,9 @@ class GiftAid extends GovTalk
             $returnable['correlationid'] = $this->getResponseCorrelationId();
         } else {
             $returnable = ['errors' => $this->getResponseErrors()];
-            $returnable['donation_ids_with_errors'] = $this->getDistinctErroringDonations($returnable['errors']['business']);
+            $returnable['donation_ids_with_errors'] = $this->getDistinctErroringDonations(
+                $returnable['errors']['business']
+            );
         }
         $returnable['claim_data_xml']     = $claimDataXml;
         $returnable['submission_request'] = $this->fullRequestString;
@@ -1120,7 +1122,8 @@ class GiftAid extends GovTalk
             // lay out the GA errors
             foreach ($this->fullResponseObject->Body->ErrorResponse->Error as $gaError) {
                 $donationId = null;
-                $pattern = '!^/hd:GovTalkMessage\[1]/hd:Body\[1]/r68:IRenvelope\[1]/r68:R68\[1]/r68:Claim\[(\d+)]/r68:Repayment\[1]/r68:GAD\[(\d+)].+$!';
+                $pattern = '!^/hd:GovTalkMessage\[1]/hd:Body\[1]/r68:IRenvelope\[1]/r68:R68\[1]/' .
+                    'r68:Claim\[(\d+)]/r68:Repayment\[1]/r68:GAD\[(\d+)].+$!';
                 if (isset($gaError->Location) && preg_match($pattern, $gaError->Location, $matches) === 1) {
                     if (isset($this->donationIdMap[$matches[1]][$matches[2]])) {
                         $donationId = $this->donationIdMap[$matches[1]][$matches[2]];
