@@ -494,21 +494,25 @@ class GiftAid extends GovTalk
      * Takes the $donations array as supplied to $this->giftAidSubmit
      * and adds it into the $package XMLWriter document.
      *
-     * $donations structure is as follows
-     * 'id', – optional but recommended to help trace back any donation-specific errors
-     * 'donation_date',
-     * 'title',
-     * 'first_name',
-     * 'last_name',
-     * 'house_no',
-     * 'postcode', - must be a uk postcode for any uk address
-     * 'overseas', - must be true if no postcode provided
-     * 'sponsored' - set to true if this money is for a sponsored event
-     * 'aggregation' - description of aggregated donations - else leave empty
-     * 'amount'
-     * 'org_hmrc_ref' – required for Agent multi-charity claims. Ignored for others.
-     *
-     * @param array $donations
+     * @param array $donations  A 2D array where top-level keys have no special
+     *  meaning and each $donation has structure of:
+     *  [
+     *   'id'               => (?string) Optional but recommended to help trace
+     *                         back any donation-specific errors
+     *   'donation_date'    => (string) YYYY-MM-DD
+     *   'title'            => (?string)
+     *   'first_name'       => (string)
+     *   'last_name'        => (string)
+     *   'house_no'         => (string)
+     *   'postcode'         => (?string) Must be a UK postcode for any UK address
+     *   'overseas'         => (bool) Must be true if no postcode provided
+     *   'sponsored'        => (bool) Whether this money is for a sponsored event
+     *   'aggregation'      => (?string) Description of aggregated donations up to 35
+     *                         characters, if applicable
+     *   'amount'           => (float) In whole pounds GBP
+     *   'org_hmrc_ref'     => (?string) Required for Agent multi-charity claims. Ignored for others.
+     * ]
+     * @return string
      */
     private function buildClaimXml(array $donations): string
     {
