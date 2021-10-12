@@ -128,7 +128,6 @@ class GiftAid extends GovTalk
     /**
      * Details for claims relating to the Small Donations Scheme
      */
-    private $haveGasds       = false;
     private $gasdsYear       = [];
     private $gasdsAmount     = [];
     private $gasdsAdjustment = 0.00;
@@ -415,14 +414,12 @@ class GiftAid extends GovTalk
 
     public function addGasds($year, $amount)
     {
-        $this->haveGasds     = true;
         $this->gasdsYear[]   = $year;
         $this->gasdsAmount[] = $amount;
     }
 
     public function resetGasds()
     {
-        $this->haveGasds   = false;
         $this->gasdsYear   = [];
         $this->gasdsAmount = [];
     }
@@ -1014,11 +1011,13 @@ class GiftAid extends GovTalk
                 $package->writeElement('HMRCref', $cc->getHmrcRef());
                 $package->endElement(); # Charity
             }
-            foreach ($this->gasdsYear as $key => $val) {
-                $package->startElement('GASDSClaim');
-                $package->writeElement('Year', $this->gasdsYear[$key]);
-                $package->writeElement('Amount', number_format($this->gasdsAmount[$key], 2, '.', ''));
-                $package->endElement(); # GASDSClaim
+            if ($this->haveGasds()) {
+                foreach ($this->gasdsYear as $key => $val) {
+                    $package->startElement('GASDSClaim');
+                    $package->writeElement('Year', $this->gasdsYear[$key]);
+                    $package->writeElement('Amount', number_format($this->gasdsAmount[$key], 2, '.', ''));
+                    $package->endElement(); # GASDSClaim
+                }
             }
 
             $package->writeElement('CommBldgs', ($this->haveCbcd == true) ? 'yes' : 'no');
@@ -1164,5 +1163,10 @@ class GiftAid extends GovTalk
         }
 
         return $donationIds;
+    }
+
+    protected function haveGasds(): bool
+    {
+        return count($this->gasdsYear) > 0;
     }
 }
