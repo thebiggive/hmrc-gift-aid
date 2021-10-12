@@ -700,7 +700,7 @@ class GiftAid extends GovTalk
                 $package->startElement('Contact');
 
                 $package->startElement('Name');
-                if (!empty($this->agentDetails['contact']['title'])) {
+                if (!empty($this->agentDetails['contact']['name']['title'])) {
                     $package->writeElement('Ttl', $this->agentDetails['contact']['name']['title']);
                 }
                 $package->writeElement('Fore', $this->agentDetails['contact']['name']['forename']);
@@ -765,7 +765,7 @@ class GiftAid extends GovTalk
         $package->writeElement('Declaration', 'yes');
 
         $claimDataXml = $this->buildClaimXml($donor_data);
-        if ($this->compress == true) {
+        if ($this->compress) {
             $package->startElement('CompressedPart');
             $package->writeAttribute('Type', 'gzip');
             $package->text(base64_encode(gzencode($claimDataXml, 9, FORCE_GZIP)));

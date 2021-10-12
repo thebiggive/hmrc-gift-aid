@@ -2,11 +2,16 @@
 
 namespace GovTalk\GiftAid;
 
+use Prophecy\PhpUnit\ProphecyTrait;
+use Psr\Log\LoggerInterface;
+
 /**
  * The base class for all GovTalk\GiftAid tests
  */
 class GiftAidTest extends TestCase
 {
+    use ProphecyTrait;
+
     /**
      * The gateway user ID
      */
@@ -68,7 +73,7 @@ class GiftAidTest extends TestCase
             'A Fundraising Organisation',
             'AB12345',
             'CCEW',
-            '123456'
+            '123456',
         );
 
         $this->claims = [
@@ -81,7 +86,7 @@ class GiftAidTest extends TestCase
                 'postcode' => 'AB23 4CD',
                 'overseas' => false,
                 'amount' => 500.00,
-                'sponsored' => true
+                'sponsored' => true,
             ],
             [
                 'donation_date' => '2013-04-15',
@@ -91,7 +96,7 @@ class GiftAidTest extends TestCase
                 'house_no' => '25 High St Anytown Foreignshire',
                 'postcode' => null,
                 'overseas' => true,
-                'amount' => 10.00
+                'amount' => 10.00,
             ],
             [
                 'donation_date' => '2013-04-17',
@@ -101,7 +106,7 @@ class GiftAidTest extends TestCase
                 'house_no' => '1',
                 'postcode' => 'BA23 9CD',
                 'overseas' => false,
-                'amount' => 2.50
+                'amount' => 2.50,
             ],
             [
                 'donation_date' => '2013-04-20',
@@ -111,12 +116,12 @@ class GiftAidTest extends TestCase
                 'house_no' => '1',
                 'postcode' => 'BA23 9CD',
                 'overseas' => false,
-                'amount' => 12.00
+                'amount' => 12.00,
             ],
             [
                 'donation_date' => '2013-04-20',
                 'amount' => 1000.00,
-                'aggregation' => 'Aggregated donation of 200 x £5 payments from members'
+                'aggregation' => 'Aggregated donation of 200 x £5 payments from members',
             ]
         ];
 
@@ -196,7 +201,7 @@ class GiftAidTest extends TestCase
         $this->assertFalse($this->gaService->getCommunityBuildings());
     }
 
-    public function testCbcd()
+    public function testCbcd(): void
     {
         $this->gaService->addCbcd('bldg', 'address', 'postcode', '2014', 12.34);
         $this->gaService->resetCbcd();
@@ -303,7 +308,7 @@ class GiftAidTest extends TestCase
         );
     }
 
-    public function testClaimSubmissionAck()
+    public function testClaimSubmissionAck(): void
     {
         $this->setMockHttpResponse('SubmitAckResponse.xml');
         $this->gaService = $this->setUpService(); // Use client w/ mock queue.
@@ -311,6 +316,73 @@ class GiftAidTest extends TestCase
         $this->gaService->setAuthorisedOfficial($this->officer);
         $this->gaService->setClaimingOrganisation($this->claimant);
         $this->gaService->setClaimToDate('2000-01-01');
+        $response = $this->gaService->giftAidSubmit($this->claims);
+
+        $this->assertArrayNotHasKey('errors', $response);
+        //$this->assertSame('acknowledgement', $this->gaService->getResponseQualifier());
+        $this->assertArrayHasKey('correlationid', $response);
+        $this->assertArrayHasKey('endpoint', $response);
+        $this->assertArrayHasKey('interval', $response);
+        $this->assertSame('A19FA1A31BCB42D887EA323292AACD88', $response['correlationid']);
+    }
+
+    public function testClaimSubmissionWithNoClaimToDate(): void
+    {
+        $loggerProphecy = $this->prophesize(LoggerInterface::class);
+        $loggerProphecy->error('Cannot proceed without claimToDate')
+            ->shouldBeCalledOnce();
+
+        $this->gaService = $this->setUpService();
+        $this->gaService->setLogger($loggerProphecy->reveal());
+
+        $this->assertFalse($this->gaService->giftAidSubmit([]));
+    }
+
+    public function testClaimSubmissionWithNoAuthorisedOfficial(): void
+    {
+        $loggerProphecy = $this->prophesize(LoggerInterface::class);
+        $loggerProphecy->error('Cannot proceed without authorisedOfficial')
+            ->shouldBeCalledOnce();
+
+        $this->gaService = $this->setUpService();
+        $this->gaService->setClaimToDate('2000-01-01');
+        $this->gaService->setLogger($loggerProphecy->reveal());
+
+        $this->assertFalse($this->gaService->giftAidSubmit([]));
+    }
+
+    public function testClaimSubmissionWithoutCompressionWithTitleAck(): void
+    {
+        $this->setMockHttpResponse('SubmitAckResponse.xml');
+        $this->gaService = $this->setUpService(); // Use client w/ mock queue.
+
+        // Don't compress the detailed claim section XML.
+        $this->gaService->setCompress(false);
+
+        $this->officer->setTitle('Mx');
+        $this->gaService->setAuthorisedOfficial($this->officer);
+        $this->gaService->setClaimingOrganisation($this->claimant);
+        $this->gaService->setClaimToDate('2000-01-01');
+
+        $response = $this->gaService->giftAidSubmit($this->claims);
+
+        $this->assertArrayNotHasKey('errors', $response);
+        //$this->assertSame('acknowledgement', $this->gaService->getResponseQualifier());
+        $this->assertArrayHasKey('correlationid', $response);
+        $this->assertArrayHasKey('endpoint', $response);
+        $this->assertArrayHasKey('interval', $response);
+        $this->assertSame('A19FA1A31BCB42D887EA323292AACD88', $response['correlationid']);
+    }
+
+    public function testClaimWithCommunityBuildingsSubmissionAck(): void
+    {
+        $this->setMockHttpResponse('SubmitAckResponse.xml');
+        $this->gaService = $this->setUpService(); // Use client w/ mock queue.
+
+        $this->gaService->setAuthorisedOfficial($this->officer);
+        $this->gaService->setClaimingOrganisation($this->claimant);
+        $this->gaService->setClaimToDate('2000-01-01');
+        $this->gaService->addCbcd('bldg', 'address', 'postcode', '2014', 12.34);
         $response = $this->gaService->giftAidSubmit($this->claims);
 
         $this->assertArrayNotHasKey('errors', $response);
@@ -330,7 +402,37 @@ class GiftAidTest extends TestCase
         $this->gaService->setClaimingOrganisation($this->claimant);
         $this->gaService->setClaimToDate('2000-01-01');
 
-        $this->gaService = $this->addValidTestAgent($this->gaService);
+        // Gets contact info with minimum supported fields set.
+        $this->gaService = $this->addValidTestAgent($this->gaService, false);
+
+        $this->gaService->addClaimingOrganisation($this->claimant);
+        $claim = $this->claims;
+        foreach ($claim as $index => $donation) {
+            $claim[$index]['org_hmrc_ref'] = $this->claimant->getHmrcRef();
+        }
+
+        $response = $this->gaService->giftAidSubmit($claim);
+
+        $this->assertArrayNotHasKey('errors', $response);
+        $this->assertArrayHasKey('correlationid', $response);
+        $this->assertArrayHasKey('endpoint', $response);
+        $this->assertArrayHasKey('interval', $response);
+        $this->assertSame('9072983591062099772', $response['correlationid']);
+    }
+
+    public function testMultiClaimSubmissionAckWithOfficialAndAgentOptionalFields(): void
+    {
+        $this->setMockHttpResponse('SubmitMultiAckResponse.xml');
+        $this->gaService = $this->setUpService(); // Use client w/ mock queue.
+
+        $this->officer->setTitle('Mx');
+
+        $this->gaService->setAuthorisedOfficial($this->officer);
+        $this->gaService->setClaimingOrganisation($this->claimant);
+        $this->gaService->setClaimToDate('2000-01-01');
+
+        // Gets contact info with all supported fields set.
+        $this->gaService = $this->addValidTestAgent($this->gaService, true);
 
         $this->gaService->addClaimingOrganisation($this->claimant);
         $claim = $this->claims;
@@ -362,7 +464,7 @@ class GiftAidTest extends TestCase
         $this->gaService->setClaimingOrganisation($this->claimant);
         $this->gaService->setClaimToDate('2000-01-01');
 
-        $this->gaService = $this->addValidTestAgent($this->gaService);
+        $this->gaService = $this->addValidTestAgent($this->gaService, false);
 
         $this->gaService->addClaimingOrganisation($this->claimant);
         $claim = $this->claims;
@@ -451,7 +553,7 @@ class GiftAidTest extends TestCase
         );
     }
 
-    private function addValidTestAgent(GiftAid $giftAidService): GiftAid
+    private function addValidTestAgent(GiftAid $giftAidService, bool $withOptionalFields): GiftAid
     {
         $agentContact = [
             'name' => [
@@ -462,16 +564,26 @@ class GiftAidTest extends TestCase
             'email' => 'billie@example.org',
         ];
 
+        $agentAddress = [
+            'line' => [
+                'AgentAddr 1',
+                'AgentAddr 2',
+            ],
+        ];
+
+        if ($withOptionalFields) {
+            $agentContact['fax'] = '01111 111111';
+            $agentContact['telephone'] = '01111 111112';
+
+            $agentAddress['postcode'] = 'N1 1AA';
+        }
+
         $giftAidService->setAgentDetails(
             '11111222223333',
             'AgentCo',
-            [
-                'line' => [
-                    'AgentAddr 1',
-                    'AgentAddr 2',
-                ],
-            ],
-            $agentContact
+            $agentAddress,
+            $agentContact,
+            $withOptionalFields ? 'MYREF123' : null,
         );
 
         return $giftAidService;

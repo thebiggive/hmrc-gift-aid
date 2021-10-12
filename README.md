@@ -36,6 +36,9 @@ $ php composer.phar update
 
     composer run test
 
+Enable Xdebug locally to see coverage data. This should still run with a note
+about the configuration and no coverage stats if it's missing.
+
 ## Some notes on the library and Data Persistance
 
 From the introduction to the [IRMark Specification](http://www.hmrc.gov.uk/softwaredevelopers/hmrcmark/generic-irmark-specification-v1-2.pdf):
