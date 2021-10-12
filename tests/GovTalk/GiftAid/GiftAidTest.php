@@ -497,6 +497,66 @@ class GiftAidTest extends TestCase
         $this->assertEquals(['some-uuid-1234'], $response['donation_ids_with_errors']);
     }
 
+    public function testMultiClaimSubmissionWithMultipleDonationErrors(): void
+    {
+        // We separately test this to be confident the correct errors map back
+        // to the correct donation IDs.
+        $this->setMockHttpResponse('SubmitMultiMultipleErrorsResponse.xml');
+        $this->gaService = $this->setUpService(); // Use client w/ mock queue.
+
+        // Provide identifier to trace donation errors, and give the 0th donation one by clearing
+        // its required name fields.
+        $this->claims[0]['id'] = 'some-uuid-5678';
+        $this->claims[0]['first_name'] = '';
+        $this->claims[0]['last_name'] = '';
+
+        $this->claims[1]['id'] = 'some-uuid-1234';
+        $this->claims[1]['first_name'] = '';
+        $this->claims[1]['last_name'] = '';
+
+        $this->gaService->setAuthorisedOfficial($this->officer);
+        $this->gaService->setClaimingOrganisation($this->claimant);
+        $this->gaService->setClaimToDate('2000-01-01');
+
+        $this->gaService = $this->addValidTestAgent($this->gaService, false);
+
+        $this->gaService->addClaimingOrganisation($this->claimant);
+        $claim = $this->claims;
+        foreach ($claim as $index => $donation) {
+            $claim[$index]['org_hmrc_ref'] = $this->claimant->getHmrcRef();
+        }
+
+        $response = $this->gaService->giftAidSubmit($claim);
+
+        $this->assertArrayHasKey('errors', $response);
+        $this->assertArrayNotHasKey('correlationid', $response);
+        $this->assertArrayNotHasKey('endpoint', $response);
+        $this->assertArrayNotHasKey('interval', $response);
+
+        $this->assertCount(0, $response['errors']['fatal']);
+        $this->assertCount(0, $response['errors']['recoverable']);
+        $this->assertCount(0, $response['errors']['warning']);
+        $this->assertCount(8, $response['errors']['business']);
+
+        $this->assertEquals(
+            "Invalid content found at element 'Sur'",
+            $response['errors']['business'][1]['text'],
+        );
+
+        // In the LTS response used to set up the mock for this test, errors are returned
+        // in reverse order, so that 'business' indices 1-4 map back to XPath
+        // `...r68:Claim[2]...`. So the UUID for error index 1 matches our 2nd (index 1)
+        // donation while that for error index 5 matches our index 0 donation.
+
+        $this->assertEquals('some-uuid-1234', $response['errors']['business'][1]['donation_id']);
+        $this->assertEquals('/hd:GovTalkMessage[1]/hd:Body[1]/r68:IRenvelope[1]/r68:R68[1]/r68:Claim[2]/r68:Repayment[1]/r68:GAD[1]/r68:Donor[1]/r68:Sur[1]', $response['errors']['business'][1]['location']);
+
+        $this->assertEquals('/hd:GovTalkMessage[1]/hd:Body[1]/r68:IRenvelope[1]/r68:R68[1]/r68:Claim[1]/r68:Repayment[1]/r68:GAD[1]/r68:Donor[1]/r68:Sur[1]', $response['errors']['business'][5]['location']);
+        $this->assertEquals('some-uuid-5678', $response['errors']['business'][5]['donation_id']);
+
+        $this->assertEquals(['some-uuid-1234', 'some-uuid-5678'], $response['donation_ids_with_errors']);
+    }
+
     public function testDeclarationResponsePoll()
     {
         $this->setMockHttpResponse('DeclarationResponsePoll.xml');
