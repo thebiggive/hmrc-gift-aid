@@ -32,6 +32,12 @@ And run composer to update your dependencies:
 $ curl -s http://getcomposer.org/installer | php
 $ php composer.phar update
 
+## Test
+
+    composer run test
+
+Enable Xdebug locally to see coverage data. This should still run with a note
+about the configuration and no coverage stats if it's missing.
 
 ## Some notes on the library and Data Persistance
 

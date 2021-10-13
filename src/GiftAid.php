@@ -128,7 +128,6 @@ class GiftAid extends GovTalk
     /**
      * Details for claims relating to the Small Donations Scheme
      */
-    private $haveGasds       = false;
     private $gasdsYear       = [];
     private $gasdsAmount     = [];
     private $gasdsAdjustment = 0.00;
@@ -138,6 +137,23 @@ class GiftAid extends GovTalk
      * PSR-3 logger – defaulting to `NullLogger`.
      */
     private ?LoggerInterface $logger = null;
+
+    /**
+     * @var array   2D array to work back from Claim number (1-indexed) and within it GAD number
+     *              (also 1-indexed) to provided donation IDs, if any.
+     *              Top level key is XML's claim index, second is GAD index.
+     *              e.g.:
+     *              [
+     *                1 => [
+     *                  1 => 'charity-one-donation-id-001',
+     *                  2 => 'charity-one-donation-id-002',
+     *                ],
+     *                2 => [
+     * *                1 => 'charity-two-donation-id-001',
+     *                ],
+     *              ];
+     */
+    private array $donationIdMap = [];
 
     /**
      * The class is instantiated with the 'SenderID' and password issued to the
@@ -156,12 +172,12 @@ class GiftAid extends GovTalk
      *                                      Service use http://localhost:5665/LTS/LTSPostServlet
      */
     public function __construct(
-        $sender_id,
-        $password,
-        $route_uri,
-        $software_name,
-        $software_version,
-        $test = false,
+        string $sender_id,
+        string $password,
+        string $route_uri,
+        string $software_name,
+        string $software_version,
+        bool $test = false,
         ?Client $httpClient = null,
         ?string $customTestEndpoint = null
     ) {
@@ -398,14 +414,12 @@ class GiftAid extends GovTalk
 
     public function addGasds($year, $amount)
     {
-        $this->haveGasds     = true;
         $this->gasdsYear[]   = $year;
         $this->gasdsAmount[] = $amount;
     }
 
     public function resetGasds()
     {
-        $this->haveGasds   = false;
         $this->gasdsYear   = [];
         $this->gasdsAmount = [];
     }
@@ -452,7 +466,8 @@ class GiftAid extends GovTalk
         ?array $contact = null,
         ?string $reference = null
     ): bool {
-        if (preg_match('/[A-Za-z0-9 &\'\(\)\*,\-\.\/]*/', $company)) {
+        $allowedCharsPattern = '/[A-Za-z0-9 &\'()*,\-.\/]*/';
+        if (preg_match($allowedCharsPattern, $company)) {
             $this->agentDetails['number'] = $agentNo;
             $this->agentDetails['company'] = $company;
             $this->agentDetails['address'] = $address;
@@ -462,36 +477,41 @@ class GiftAid extends GovTalk
             if ($contact !== null) {
                 $this->agentDetails['contact'] = $contact;
             }
-            if (($reference !== null) && preg_match('/[A-Za-z0-9 &\'\(\)\*,\-\.\/]*/', $reference)) {
+            if (($reference !== null) && preg_match($allowedCharsPattern, $reference)) {
                 $this->agentDetails['reference'] = $reference;
             }
 
             return true;
-        } else {
-            return false;
         }
+
+        return false;
     }
 
     /**
-     * Takes the $donor_data array as supplied to $this->giftAidSubmit
+     * Takes the $donations array as supplied to $this->giftAidSubmit
      * and adds it into the $package XMLWriter document.
      *
-     * $donor_data structure is as follows
-     * 'donation_date',
-     * 'title',
-     * 'first_name',
-     * 'last_name',
-     * 'house_no',
-     * 'postcode', - must be a uk postcode for any uk address
-     * 'overseas', - must be true if no postcode provided
-     * 'sponsored' - set to true if this money is for a sponsored event
-     * 'aggregation' - description of aggregated donations - else leave empty
-     * 'amount'
-     * 'org_hmrc_ref' – required for Agent multi-charity claims. Ignored for others.
-     *
-     * @param array $donor_data
+     * @param array $donations  A 2D array where top-level keys have no special
+     *  meaning and each $donation has structure of:
+     *  [
+     *   'id'               => (?string) Optional but recommended to help trace
+     *                         back any donation-specific errors
+     *   'donation_date'    => (string) YYYY-MM-DD
+     *   'title'            => (?string)
+     *   'first_name'       => (string)
+     *   'last_name'        => (string)
+     *   'house_no'         => (string)
+     *   'postcode'         => (?string) Must be a UK postcode for any UK address
+     *   'overseas'         => (bool) Must be true if no postcode provided
+     *   'sponsored'        => (bool) Whether this money is for a sponsored event
+     *   'aggregation'      => (?string) Description of aggregated donations up to 35
+     *                         characters, if applicable
+     *   'amount'           => (float) In whole pounds GBP
+     *   'org_hmrc_ref'     => (?string) Required for Agent multi-charity claims. Ignored for others.
+     * ]
+     * @return string
      */
-    private function buildClaimXml(array $donor_data): string
+    private function buildClaimXml(array $donations): string
     {
         $package = new XMLWriter();
         $package->openMemory();
@@ -499,9 +519,10 @@ class GiftAid extends GovTalk
 
         $currentClaimOrgRef = null;
         $claimOpen = false;
+        $claimNumber = $gadNumber = 0;
         $earliestDate = strtotime(date('Y-m-d'));
 
-        foreach ($donor_data as $index => $d) {
+        foreach ($donations as $index => $d) {
             if ($this->isAgentMultiClaim()) {
                 if (empty($d['org_hmrc_ref'])) {
                     $this->logger->warning(sprintf(
@@ -535,6 +556,8 @@ class GiftAid extends GovTalk
 
                 $this->writeClaimStartData($package, $org);
                 $claimOpen = true;
+                $claimNumber++;
+                $gadNumber = 0;
             }
 
             if (isset($d['donation_date'])) {
@@ -542,6 +565,12 @@ class GiftAid extends GovTalk
                 $earliestDate = ($dDate < $earliestDate) ? $dDate : $earliestDate;
             }
             $package->startElement('GAD');
+            $gadNumber++;
+
+            if (isset($d['id'])) {
+                $this->donationIdMap[$claimNumber][$gadNumber] = $d['id'];
+            }
+
             if (!isset($d['aggregation']) || empty($d['aggregation'])) {
                 $package->startElement('Donor');
                 $person = new Individual(
@@ -671,7 +700,7 @@ class GiftAid extends GovTalk
                 $package->startElement('Contact');
 
                 $package->startElement('Name');
-                if (!empty($this->agentDetails['contact']['title'])) {
+                if (!empty($this->agentDetails['contact']['name']['title'])) {
                     $package->writeElement('Ttl', $this->agentDetails['contact']['name']['title']);
                 }
                 $package->writeElement('Fore', $this->agentDetails['contact']['name']['forename']);
@@ -736,7 +765,7 @@ class GiftAid extends GovTalk
         $package->writeElement('Declaration', 'yes');
 
         $claimDataXml = $this->buildClaimXml($donor_data);
-        if ($this->compress == true) {
+        if ($this->compress) {
             $package->startElement('CompressedPart');
             $package->writeAttribute('Type', 'gzip');
             $package->text(base64_encode(gzencode($claimDataXml, 9, FORCE_GZIP)));
@@ -756,6 +785,9 @@ class GiftAid extends GovTalk
             $returnable['correlationid'] = $this->getResponseCorrelationId();
         } else {
             $returnable = ['errors' => $this->getResponseErrors()];
+            $returnable['donation_ids_with_errors'] = $this->getDistinctErroringDonations(
+                $returnable['errors']['business']
+            );
         }
         $returnable['claim_data_xml']     = $claimDataXml;
         $returnable['submission_request'] = $this->fullRequestString;
@@ -979,11 +1011,13 @@ class GiftAid extends GovTalk
                 $package->writeElement('HMRCref', $cc->getHmrcRef());
                 $package->endElement(); # Charity
             }
-            foreach ($this->gasdsYear as $key => $val) {
-                $package->startElement('GASDSClaim');
-                $package->writeElement('Year', $this->gasdsYear[$key]);
-                $package->writeElement('Amount', number_format($this->gasdsAmount[$key], 2, '.', ''));
-                $package->endElement(); # GASDSClaim
+            if ($this->haveGasds()) {
+                foreach ($this->gasdsYear as $key => $val) {
+                    $package->startElement('GASDSClaim');
+                    $package->writeElement('Year', $this->gasdsYear[$key]);
+                    $package->writeElement('Amount', number_format($this->gasdsAmount[$key], 2, '.', ''));
+                    $package->endElement(); # GASDSClaim
+                }
             }
 
             $package->writeElement('CommBldgs', ($this->haveCbcd == true) ? 'yes' : 'no');
@@ -1072,7 +1106,10 @@ class GiftAid extends GovTalk
         $govTalkErrors = parent::getResponseErrors();
 
         foreach ($govTalkErrors['business'] as $b_index => $b_err) {
-            if ($b_err['number'] == "3001") {
+            // Looks like this is removed because it is the most generic error code and is expected to always be
+            // accompanied by more specific ones later in the response. Text found alongside this code is: "Your
+            // submission failed due to business validation errors. Please see below for details."
+            if ($b_err['number'] === '3001') {
                 unset($govTalkErrors['business'][$b_index]);
             }
         }
@@ -1087,14 +1124,49 @@ class GiftAid extends GovTalk
         if (!$has_gt_errors) {
             // lay out the GA errors
             foreach ($this->fullResponseObject->Body->ErrorResponse->Error as $gaError) {
+                $donationId = null;
+                $pattern = '!^/hd:GovTalkMessage\[1]/hd:Body\[1]/r68:IRenvelope\[1]/r68:R68\[1]/' .
+                    'r68:Claim\[(\d+)]/r68:Repayment\[1]/r68:GAD\[(\d+)].+$!';
+                if (isset($gaError->Location) && preg_match($pattern, $gaError->Location, $matches) === 1) {
+                    if (isset($this->donationIdMap[$matches[1]][$matches[2]])) {
+                        $donationId = $this->donationIdMap[$matches[1]][$matches[2]];
+                    }
+                }
+
                 $govTalkErrors['business'][] = [
                     'number'   => (string) $gaError->Number,
                     'text'     => (string) $gaError->Text,
-                    'location' => (string) $gaError->Location
+                    'location' => (string) $gaError->Location,
+                    'donation_id' => $donationId,
                 ];
             }
         }
 
         return $govTalkErrors;
+    }
+
+    /**
+     * @param array[] $businessErrors each possibly including a 'donation_id' key.
+     * @return string[] Donation IDs
+     */
+    private function getDistinctErroringDonations(array $businessErrors): array
+    {
+        if (empty($this->donationIdMap)) {
+            return []; // Input should always be donation-ID-free when there's no map values.
+        }
+
+        $donationIds = [];
+        foreach ($businessErrors as $businessError) {
+            if (!empty($businessError['donation_id']) && !in_array($businessError['donation_id'], $donationIds, true)) {
+                $donationIds[] = $businessError['donation_id'];
+            }
+        }
+
+        return $donationIds;
+    }
+
+    protected function haveGasds(): bool
+    {
+        return count($this->gasdsYear) > 0;
     }
 }
