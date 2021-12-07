@@ -269,8 +269,12 @@ class GiftAid extends GovTalk
         return $this->productUri;
     }
 
-    public function setProductUri($value)
+    public function setProductUri($value): void
     {
+        if (preg_match('/^\\d{4}$/', $value) !== 1) {
+            throw new \UnexpectedValueException('"Product URI" should be a 4-digit HMRC vendor ID');
+        }
+
         $this->productUri = $value;
     }
 
@@ -655,7 +659,7 @@ class GiftAid extends GovTalk
 
         $this->addMessageKey($this->getCharIdKey(), $this->getCharIdValue());
 
-        $this->addChannelRoute(
+        $this->setChannelRoute(
             $this->getProductUri(),
             $this->getProductName(),
             $this->getProductVersion()
@@ -810,7 +814,7 @@ class GiftAid extends GovTalk
 
         $this->addMessageKey($this->getCharIdKey(), $this->getClaimingOrganisation()->getHmrcRef());
 
-        $this->addChannelRoute(
+        $this->setChannelRoute(
             $this->getProductUri(),
             $this->getProductName(),
             $this->getProductVersion()

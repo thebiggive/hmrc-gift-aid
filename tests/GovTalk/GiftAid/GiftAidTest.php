@@ -51,7 +51,7 @@ class GiftAidTest extends TestCase
          */
         $this->gatewayUserID = 'XMLGatewayTestUserID';
         $this->gatewayUserPassword = 'XMLGatewayTestPassword';
-        $this->gatewayVendorID = 'GatewaySubmitter';
+        $this->gatewayVendorID = '0000';
         $this->gatewaySoftware = 'GivingSoft';
         $this->gatewaySoftVersion = '1.2.0';
 
@@ -154,11 +154,19 @@ class GiftAidTest extends TestCase
         $this->assertSame($value, $this->gaService->getVendorId());
     }
 
-    public function testProductUri()
+    public function testProductUri(): void
     {
-        $value = uniqid();
+        $value = '0000';
         $this->gaService->setProductUri($value);
         $this->assertSame($value, $this->gaService->getProductUri());
+    }
+
+    public function testInvalidProductUri(): void
+    {
+        $this->expectException(\UnexpectedValueException::class);
+
+        $value = uniqid('', true);
+        $this->gaService->setProductUri($value);
     }
 
     public function testProductName()

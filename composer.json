@@ -42,7 +42,7 @@
         "ext-simplexml": "*",
         "ext-xmlwriter": "*",
         "ext-zlib": "*",
-        "thebiggive/php-govtalk": "^1.0.0-beta3"
+        "thebiggive/php-govtalk": "^1.0.0-beta4"
     },
     "require-dev": {
         "phpspec/prophecy-phpunit": "^2.0",
