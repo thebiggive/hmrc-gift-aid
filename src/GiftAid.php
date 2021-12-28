@@ -509,13 +509,18 @@ class GiftAid extends GovTalk
      *   'title'            => (?string)
      *   'first_name'       => (string)
      *   'last_name'        => (string)
-     *   'house_no'         => (string)
+     *   'house_no'         => (string) If overseas, should actually be as full an
+     *                                  address as possible while being truncated
+     *                                  at 40 characters. The specific country is
+     *                                  not required to fit within this, so probably
+     *                                  prioritise first address line(s).
      *   'postcode'         => (?string) Must be a UK postcode for any UK address
      *   'overseas'         => (bool) Must be true if no postcode provided
      *   'sponsored'        => (bool) Whether this money is for a sponsored event
      *   'aggregation'      => (?string) Description of aggregated donations up to 35
      *                         characters, if applicable
      *   'amount'           => (float) In whole pounds GBP
+     *   'org_name'         => (?string) Required for Agent multi-charity claims. Ignored for others.
      *   'org_hmrc_ref'     => (?string) Required for Agent multi-charity claims. Ignored for others.
      * ]
      * @return string
