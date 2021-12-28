@@ -352,6 +352,11 @@ class GiftAid extends GovTalk
         return $this->claimingOrganisations[$hmrcRef] ?? null;
     }
 
+    public function clearClaimingOrganisations(): void
+    {
+        $this->claimingOrganisations = [];
+    }
+
     public function setClaimingOrganisation(ClaimingOrganisation $organisation)
     {
         $this->claimingOrganisations = [$organisation->getHmrcRef() => $organisation];
