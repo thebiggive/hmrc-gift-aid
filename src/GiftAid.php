@@ -649,7 +649,8 @@ class GiftAid extends GovTalk
             return false;
         }
 
-        if ($this->getAuthorisedOfficial() === null) {
+        // It seems like only single org / direct claims use/need the Authorised Official.
+        if (!$this->isAgentMultiClaim() && $this->getAuthorisedOfficial() === null) {
             $this->logger->error('Cannot proceed without authorisedOfficial');
             return false;
         }
