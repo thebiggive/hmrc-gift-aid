@@ -6,7 +6,7 @@ class ClaimingOrganisation
 {
     private $name = '';
     private $hmrcRef = '';
-    private $regulator = '';
+    private ?string $regulator;
     private $regNo = '';
     private $hasConnectedCharities = false;
     private $connectedCharities = [];
@@ -49,9 +49,12 @@ class ClaimingOrganisation
         return $this->regulator;
     }
 
-    public function setRegulator($value)
+    /**
+     * @param string|null $regulator    Null for exempt orgs
+     */
+    public function setRegulator(?string $regulator): void
     {
-        $this->regulator = $value;
+        $this->regulator = $regulator;
     }
 
     public function getRegNo()
@@ -105,5 +108,10 @@ class ClaimingOrganisation
         } else {
             $this->useCommunityBuildings = false;
         }
+    }
+
+    public function hasStandardRegulator(): bool
+    {
+        return in_array($this->regulator, ['CCEW', 'CCNI', 'OSCR'], true);
     }
 }

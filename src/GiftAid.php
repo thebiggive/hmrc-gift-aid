@@ -984,7 +984,14 @@ class GiftAid extends GovTalk
         // Collecting Agent details are present"
         if (!$this->isAgentMultiClaim()) {
             $package->startElement('Regulator');
-            $package->writeElement('RegName', $org->getRegulator());
+
+            if ($org->getRegulator() === null) {
+                $package->writeElement('NoReg', 'yes');
+            } elseif ($org->hasStandardRegulator()) {
+                $package->writeElement('RegName', $org->getRegulator());
+            } else {
+                $package->writeElement('OtherReg', $org->getRegulator());
+            }
             $package->writeElement('RegNo', $org->getRegNo());
             $package->endElement(); # Regulator
         }

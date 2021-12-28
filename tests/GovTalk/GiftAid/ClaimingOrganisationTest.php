@@ -7,6 +7,8 @@ namespace GovTalk\GiftAid;
  */
 class ClaimingOrganisationTest extends TestCase
 {
+    private ClaimingOrganisation $claimant;
+
     public function setUp(): void
     {
         parent::setUp();
@@ -25,6 +27,23 @@ class ClaimingOrganisationTest extends TestCase
         $this->assertEquals($this->claimant->getHmrcRef(), 'AB12345');
         $this->assertEquals($this->claimant->getRegulator(), 'CCEW');
         $this->assertEquals($this->claimant->getRegNo(), '2584789658');
+        $this->assertTrue($this->claimant->hasStandardRegulator());
+    }
+
+    public function testExemptOrgAllowed(): void
+    {
+        $exemptClaimant = clone $this->claimant;
+        $exemptClaimant->setRegulator(null);
+
+        $this->assertFalse($exemptClaimant->hasStandardRegulator());
+    }
+
+    public function testOtherRegulatorAllowed(): void
+    {
+        $exemptClaimant = clone $this->claimant;
+        $exemptClaimant->setRegulator('nonStandardRegulator');
+
+        $this->assertFalse($exemptClaimant->hasStandardRegulator());
     }
 
     public function testOrganisationChange()
