@@ -12,11 +12,18 @@ class ClaimingOrganisation
     private $connectedCharities = [];
     private $useCommunityBuildings = false;
 
+    /**
+     * @param ?string $name
+     * @param ?string $hmrcRef  In Test mode – targeting the real Reflector server – this
+     *                          should be AB12345 unless advised of another value by HMRC.
+     * @param ?string $regulator
+     * @param ?string $regNo
+     */
     public function __construct(
-        $name = null,
-        $hmrcRef = null,
-        $regulator = null,
-        $regNo = null
+        ?string $name = null,
+        ?string $hmrcRef = null,
+        ?string $regulator = null,
+        ?string $regNo = null
     ) {
         $this->name = $name;
         $this->hmrcRef = $hmrcRef;
