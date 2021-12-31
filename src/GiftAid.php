@@ -807,6 +807,9 @@ class GiftAid extends GovTalk
         $returnable['claim_data_xml']     = $claimDataXml;
         $returnable['submission_request'] = $this->fullRequestString;
 
+        $this->logger->info($this->fullRequestString, ['gift_aid_message' => 'request']);
+        $this->logger->info($this->fullResponseString, ['gift_aid_message' => 'response']);
+
         return $returnable;
     }
 
