@@ -1,5 +1,5 @@
 {
-    "name": "thebiggive/hmrc-gift-aid",
+    "name": "lee-van-oetz/hmrc-gift-aid",
     "type": "library",
     "description": "A library for charities and CASCs to claim Gift Aid (including Small Donations) from HMRC",
     "homepage": "https://github.com/thebiggive/hmrc-gift-aid",
