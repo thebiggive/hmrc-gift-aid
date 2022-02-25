@@ -4,7 +4,7 @@
     "description": "A library for charities and CASCs to claim Gift Aid (including Small Donations) from HMRC",
     "homepage": "https://github.com/thebiggive/hmrc-gift-aid",
     "license": "GPL-3.0-or-later",
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true,
     "authors": [
         {
@@ -42,7 +42,7 @@
         "ext-simplexml": "*",
         "ext-xmlwriter": "*",
         "ext-zlib": "*",
-        "thebiggive/php-govtalk": "^1.0.0-beta4"
+        "thebiggive/php-govtalk": "^1.0.0"
     },
     "require-dev": {
         "phpspec/prophecy-phpunit": "^2.0",
