@@ -664,7 +664,7 @@ class GiftAid extends GovTalk
         $this->setMessageClass($this->getMessageClass());
         $this->setMessageQualifier('request');
         $this->setMessageFunction('submit');
-        $this->setMessageCorrelationId(null);
+        $this->setMessageCorrelationId('');
         $this->setMessageTransformation('XML');
         $this->addTargetOrganisation($cOrganisation);
 
