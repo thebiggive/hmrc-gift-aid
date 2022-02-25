@@ -572,6 +572,7 @@ class GiftAid extends GovTalk
                 $claimOpen = true;
                 $claimNumber++;
                 $gadNumber = 0;
+                $currentClaimOrgRef = $d['org_hmrc_ref'];
             }
 
             if (isset($d['donation_date'])) {
