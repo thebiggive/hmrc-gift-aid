@@ -668,7 +668,7 @@ class GiftAid extends GovTalk
         $this->setMessageTransformation('XML');
         $this->addTargetOrganisation($cOrganisation);
 
-        $this->addMessageKey($this->getCharIdKey(), $this->getCharIdValue());
+        $this->setSoleMessageKey($this->getCharIdKey(), $this->getCharIdValue());
 
         $this->setChannelRoute(
             $this->getProductUri(),
@@ -826,7 +826,10 @@ class GiftAid extends GovTalk
 
         $this->addTargetOrganisation('IR');
 
-        $this->addMessageKey($this->getCharIdKey(), $this->getClaimingOrganisation()->getHmrcRef());
+        $this->setSoleMessageKey(
+            $this->getCharIdKey(),
+            $this->getClaimingOrganisation()->getHmrcRef(),
+        );
 
         $this->setChannelRoute(
             $this->getProductUri(),
@@ -1168,6 +1171,23 @@ class GiftAid extends GovTalk
         }
 
         return $govTalkErrors;
+    }
+
+    /**
+     * Removes *all* existing <GovTalkDetails /> keys and writes a new one with the given type
+     * and value. This allows for e.g. an agent number to be provided to a `GiftAid` instance
+     * several times in the same process without worrying about whether header data was already
+     * set. It should also make it safe to mix and match agent and direct claims while using
+     * the same instance of `GiftAid`.
+     *
+     * @param string $type  'AGENTCHARID' or 'CHARID'.
+     * @param string $value Identifier for who is claiming.
+     * @return bool True if the key is valid and added; false if we left `GovTalkDetails` free of keys.
+     */
+    protected function setSoleMessageKey(string $type, string $value): bool
+    {
+        $this->resetMessageKeys();
+        return $this->addMessageKey($type, $value);
     }
 
     /**
