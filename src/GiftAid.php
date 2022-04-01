@@ -858,8 +858,8 @@ class GiftAid extends GovTalk
     }
 
     /**
-     * Polls the Gateway for a submission response / error following a VAT
-     * declaration request. By default the correlation ID from the last response
+     * Polls the Gateway for a submission response / error following a request.
+     * By default the correlation ID from the last response
      * is used for the polling, but this can be over-ridden by supplying a
      * correlation ID. The correlation ID can be skipped by passing a null value.
      *
@@ -925,10 +925,14 @@ class GiftAid extends GovTalk
                 }
             } else {
                 if ($this->responseHasErrors()) {
-                    return [
+                    $returnable = [
                         'errors'             => $this->getResponseErrors(),
                         'fullResponseString' => $this->fullResponseString
                     ];
+                    $returnable['donation_ids_with_errors'] = $this->getDistinctErroringDonations(
+                        $returnable['errors']['business']
+                    );
+                    return $returnable;
                 }
 
                 return false;
@@ -1157,8 +1161,10 @@ class GiftAid extends GovTalk
                 $pattern = '!^/hd:GovTalkMessage\[1]/hd:Body\[1]/r68:IRenvelope\[1]/r68:R68\[1]/' .
                     'r68:Claim\[(\d+)]/r68:Repayment\[1]/r68:GAD\[(\d+)].+$!';
                 if (isset($gaError->Location) && preg_match($pattern, $gaError->Location, $matches) === 1) {
-                    if (isset($this->donationIdMap[$matches[1]][$matches[2]])) {
-                        $donationId = $this->donationIdMap[$matches[1]][$matches[2]];
+                    $claimIndex = (int) $matches[1];
+                    $gadIndex = (int) $matches[2];
+                    if (isset($this->donationIdMap[$claimIndex][$gadIndex])) {
+                        $donationId = $this->donationIdMap[$claimIndex][$gadIndex];
                     }
                 }
 

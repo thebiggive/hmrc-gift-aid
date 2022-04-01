@@ -556,8 +556,10 @@ class GiftAidTest extends TestCase
         // `...r68:Claim[2]...`. So the UUID for error index 1 matches our 2nd (index 1)
         // donation while that for error index 5 matches our index 0 donation.
 
+        // We expect both donations to be in the same claim because they share an HMRC org ref.
+
         $this->assertEquals('some-uuid-1234', $response['errors']['business'][1]['donation_id']);
-        $this->assertEquals('/hd:GovTalkMessage[1]/hd:Body[1]/r68:IRenvelope[1]/r68:R68[1]/r68:Claim[2]/r68:Repayment[1]/r68:GAD[1]/r68:Donor[1]/r68:Sur[1]', $response['errors']['business'][1]['location']);
+        $this->assertEquals('/hd:GovTalkMessage[1]/hd:Body[1]/r68:IRenvelope[1]/r68:R68[1]/r68:Claim[1]/r68:Repayment[1]/r68:GAD[2]/r68:Donor[1]/r68:Sur[1]', $response['errors']['business'][1]['location']);
 
         $this->assertEquals('/hd:GovTalkMessage[1]/hd:Body[1]/r68:IRenvelope[1]/r68:R68[1]/r68:Claim[1]/r68:Repayment[1]/r68:GAD[1]/r68:Donor[1]/r68:Sur[1]', $response['errors']['business'][5]['location']);
         $this->assertEquals('some-uuid-5678', $response['errors']['business'][5]['donation_id']);
@@ -565,7 +567,7 @@ class GiftAidTest extends TestCase
         $this->assertEquals(['some-uuid-1234', 'some-uuid-5678'], $response['donation_ids_with_errors']);
     }
 
-    public function testDeclarationResponsePoll()
+    public function testDeclarationResponsePoll(): void
     {
         $this->setMockHttpResponse('DeclarationResponsePoll.xml');
         $this->gaService = $this->setUpService(); // Use client w/ mock queue.
