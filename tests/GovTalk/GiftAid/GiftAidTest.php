@@ -583,6 +583,32 @@ class GiftAidTest extends TestCase
         $this->assertSame('A19FA1A31BCB42D887EA323292AACD88', $response['correlationid']);
     }
 
+    public function testMultiClaimPollSuccessAndResponseDataFormat(): void
+    {
+        $this->setMockHttpResponse('MultiClaimResponsePoll.xml');
+        $this->gaService = $this->setUpService(); // Use client w/ mock queue.
+
+        $response = $this->gaService->declarationResponsePoll(
+            '456',
+            'https://secure.dev.gateway.gov.uk/poll'
+        );
+
+        $this->assertArrayNotHasKey('errors', $response);
+        $this->assertEquals('response', $this->gaService->getResponseQualifier());
+
+        $this->assertArrayHasKey('correlationid', $response);
+        $this->assertArrayHasKey('submission_response', $response);
+        $this->assertArrayHasKey('submission_response_xml', $response);
+        $this->assertArrayHasKey('submission_response_message', $response);
+
+        $this->assertIsString($response['submission_response']);
+        $this->assertIsString($response['submission_response_xml']);
+        $this->assertIsString($response['submission_response_message']);
+
+        $this->assertEquals('456', $response['correlationid']);
+        $this->assertEquals('Thank you for your submission', $response['submission_response_message']);
+    }
+
     public function testRequestClaimData()
     {
         $this->setMockHttpResponse('RequestClaimDataResponse.xml');
