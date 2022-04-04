@@ -893,53 +893,68 @@ class GiftAid extends GovTalk
     public function declarationResponsePoll($correlationId = null, $pollUrl = null)
     {
         if ($correlationId === null) {
-            $correlationId = $this->getResponseCorrelationId();
+            $correlationId = (string) $this->getResponseCorrelationId();
         }
 
-        if ($this->setMessageCorrelationId($correlationId)) {
-            if ($pollUrl !== null) {
-                $this->setGovTalkServer($pollUrl);
-            }
-            $this->setMessageClass($this->getMessageClass());
-            $this->setMessageQualifier('poll');
-            $this->setMessageFunction('submit');
-            $this->setMessageTransformation('XML');
-            $this->resetMessageKeys();
-            $this->setMessageBody('');
-            if ($this->sendMessage() && ($this->responseHasErrors() === false)) {
-                $messageQualifier = (string) $this->fullResponseObject->Header->MessageDetails->Qualifier;
-                if ($messageQualifier === 'response') {
-                    return [
-                        'correlationid'       => $correlationId,
-                        'submission_request'  => $this->fullRequestString,
-                        'submission_response' => $this->fullResponseString
-                    ];
-                } elseif ($messageQualifier === 'acknowledgement') {
-                    $returnable                       = $this->getResponseEndpoint();
-                    $returnable['correlationid']      = $this->getResponseCorrelationId();
-                    $returnable['submission_request'] = $this->fullRequestString;
-
-                    return $returnable;
-                } else {
-                    return false;
-                }
-            } else {
-                if ($this->responseHasErrors()) {
-                    $returnable = [
-                        'errors'             => $this->getResponseErrors(),
-                        'fullResponseString' => $this->fullResponseString
-                    ];
-                    $returnable['donation_ids_with_errors'] = $this->getDistinctErroringDonations(
-                        $returnable['errors']['business']
-                    );
-                    return $returnable;
-                }
-
-                return false;
-            }
-        } else {
+        if (empty($correlationId)) {
             return false;
         }
+
+        if (!$this->setMessageCorrelationId($correlationId)) {
+            return false;
+        }
+
+        if ($pollUrl !== null) {
+            $this->setGovTalkServer($pollUrl);
+        }
+        $this->setMessageClass($this->getMessageClass());
+        $this->setMessageQualifier('poll');
+        $this->setMessageFunction('submit');
+        $this->setMessageTransformation('XML');
+        $this->resetMessageKeys();
+        $this->setMessageBody('');
+
+        $dataSent = $this->sendMessage();
+        $this->logger->info($this->fullRequestString, ['gift_aid_message' => 'poll_request']);
+
+        if ($dataSent) {
+            $this->logger->info($this->fullResponseString, ['gift_aid_message' => 'poll_response']);
+        }
+
+        if (!$dataSent) {
+            return false;
+        }
+
+        if (!$this->responseHasErrors()) {
+            $messageQualifier = (string) $this->fullResponseObject->Header->MessageDetails->Qualifier;
+            if ($messageQualifier === 'response') {
+                return [
+                    'correlationid'       => $correlationId,
+                    'submission_request'  => $this->fullRequestString,
+                    'submission_response' => $this->fullResponseString
+                ];
+            }
+
+            if ($messageQualifier === 'acknowledgement') {
+                $returnable                       = $this->getResponseEndpoint();
+                $returnable['correlationid']      = $this->getResponseCorrelationId();
+                $returnable['submission_request'] = $this->fullRequestString;
+
+                return $returnable;
+            }
+
+            return false;
+        }
+
+        // Else response has errors.
+        $returnable = [
+            'errors'             => $this->getResponseErrors(),
+            'fullResponseString' => $this->fullResponseString
+        ];
+        $returnable['donation_ids_with_errors'] = $this->getDistinctErroringDonations(
+            $returnable['errors']['business']
+        );
+        return $returnable;
     }
 
     /**
