@@ -242,10 +242,10 @@ class GiftAidTest extends TestCase
 
     public function testEndpoint()
     {
-        $testEndpoint = $this->gaService->getEndpoint(true);
-        $liveEndpoint = $this->gaService->getEndpoint(false);
+        $testEndpoint = $this->gaService->getClaimEndpoint();
 
-        $this->assertNotSame($liveEndpoint, $testEndpoint);
+        // No longer possible to override test mode for individual URL requests.
+        $this->assertEquals('https://test-transaction-engine.tax.service.gov.uk/submission', $testEndpoint);
     }
 
     public function testAdjustments()

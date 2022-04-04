@@ -155,6 +155,9 @@ class GiftAid extends GovTalk
      */
     private array $donationIdMap = [];
 
+    private ?string $customTestEndpoint = null;
+    private ?bool $testMode = null;
+
     /**
      * The class is instantiated with the 'SenderID' and password issued to the
      * claiming charity by HMRC. Also we need to know whether messages for
@@ -177,18 +180,19 @@ class GiftAid extends GovTalk
         string $route_uri,
         string $software_name,
         string $software_version,
-        bool $test = false,
+        bool $testMode = false,
         ?Client $httpClient = null,
         ?string $customTestEndpoint = null
     ) {
-        $test = is_bool($test) ? $test : false;
+        $this->testMode = $testMode;
+        $this->customTestEndpoint = $customTestEndpoint;
 
-        $endpoint = $this->getEndpoint($test, $customTestEndpoint);
+        $endpoint = $this->getClaimEndpoint();
 
         $this->setProductUri($route_uri);
         $this->setProductName($software_name);
         $this->setProductVersion($software_version);
-        $this->setTestFlag($test);
+        $this->setTestFlag($this->testMode);
 
         parent::__construct(
             $endpoint,
@@ -221,15 +225,13 @@ class GiftAid extends GovTalk
      * @link https://www.gov.uk/government/publications/local-test-service-and-lts-update-manager
      * @link https://github.com/comicrelief/gail/blob/e80a0793b5dac8b9c8e037e409a398eaf79342d3/Documents/technical_guidance.md
      */
-    public function getEndpoint($test = false, ?string $customTestEndpoint = null): string
+    public function getClaimEndpoint(): string
     {
-        $test = is_bool($test) ? $test : false;
-
-        if ($test && $customTestEndpoint) {
-            return $customTestEndpoint;
+        if ($this->testMode && $this->customTestEndpoint) {
+            return $this->customTestEndpoint;
         }
 
-        return $test ? $this->devEndpoint : $this->liveEndpoint;
+        return $this->testMode ? $this->devEndpoint : $this->liveEndpoint;
     }
 
     /**
@@ -655,6 +657,9 @@ class GiftAid extends GovTalk
             $this->logger->error('Cannot proceed without authorisedOfficial');
             return false;
         }
+
+        // Ensure we are using the correct endpoint even if a poll has just happened.
+        $this->setGovTalkServer($this->getClaimEndpoint());
 
         $cOrganisation      = 'IR';
         $sDefaultCurrency   = 'GBP'; // currently HMRC only allows GBP
