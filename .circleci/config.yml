@@ -13,14 +13,14 @@ jobs:
 
       - restore_cache:
           keys:
-            - composer-v1-{{ checksum "composer.lock" }}
+            - composer-v1-{{ checksum "composer.json" }}
 
       - run: composer install --no-interaction
 
       - save_cache:
           paths:
             - vendor
-          key: composer-v1-{{ checksum "composer.lock" }}
+          key: composer-v1-{{ checksum "composer.json" }}
 
       - run: composer run lint:check
       - run: composer run test
