@@ -1180,6 +1180,7 @@ class GiftAid extends GovTalk
 
                 $govTalkErrors['business'][] = [
                     'number'   => (string) $gaError->Number,
+                    'message'  => (string) $gaError->Message,
                     'text'     => (string) $gaError->Text,
                     'location' => (string) $gaError->Location,
                     'donation_id' => $donationId,
