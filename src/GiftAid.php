@@ -1018,9 +1018,7 @@ class GiftAid extends GovTalk
 
     protected function getCharIdValue(): string
     {
-        return $this->isAgentClaim()
-            ? $this->agentDetails['number']
-            : $this->getClaimingOrganisation()->getHmrcRef();
+        return $this->getClaimingOrganisation()->getHmrcRef();
     }
 
     protected function writeClaimStartData(XMLWriter $package, ClaimingOrganisation $org): void
