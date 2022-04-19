@@ -493,6 +493,11 @@ class GiftAidTest extends TestCase
         $this->assertCount(4, $response['errors']['business']);
 
         $this->assertEquals(
+            "cvc-type.3.1.3: The value '' of element 'Sur' is not valid.",
+            $response['errors']['business'][1]['message'],
+        );
+
+        $this->assertEquals(
             "Invalid content found at element 'Sur'",
             $response['errors']['business'][1]['text'],
         );
