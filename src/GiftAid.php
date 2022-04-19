@@ -467,6 +467,10 @@ class GiftAid extends GovTalk
      * @param string    $company    The agent company's name.
      * @param array     $address    The agent company's address in the format specified above.
      * @param ?array    $contact    The agent company's key contact (optional, may be skipped with a null value).
+     *                              If `['name']['surname']` is empty or not set, the whole name will be skipepd.
+     *                              This is done to enable just 'telephone' to be provided for claims where an
+     *                              `AgtOrNom` element is to be set up with an organisation name and the required
+     *                              phone number, but not other personal Agent information.
      * @param ?string   $reference  An identifier for the agent's own reference (optional).
      * @return bool                 Whether company format was as expected & agent data was set.
      */
@@ -717,7 +721,7 @@ class GiftAid extends GovTalk
             $package->writeElement('Country', $this->agentDetails['address']['country']);
             $package->endElement(); // Address
 
-            if (isset($this->agentDetails['contact'])) {
+            if (isset($this->agentDetails['contact']) && !empty($this->agentDetails['contact']['name']['surname'])) {
                 $package->startElement('Contact');
 
                 $package->startElement('Name');
