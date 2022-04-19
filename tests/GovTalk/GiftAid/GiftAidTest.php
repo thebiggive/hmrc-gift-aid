@@ -663,6 +663,7 @@ class GiftAidTest extends TestCase
                 'surname' => 'Bravo',
             ],
             'email' => 'billie@example.org',
+            'telephone' => '01111 111112',
         ];
 
         $agentAddress = [
@@ -674,8 +675,6 @@ class GiftAidTest extends TestCase
 
         if ($withOptionalFields) {
             $agentContact['fax'] = '01111 111111';
-            $agentContact['telephone'] = '01111 111112';
-
             $agentAddress['postcode'] = 'N1 1AA';
         }
 
