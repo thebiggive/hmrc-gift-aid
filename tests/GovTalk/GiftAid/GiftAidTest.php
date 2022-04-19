@@ -401,9 +401,9 @@ class GiftAidTest extends TestCase
         $this->assertSame('A19FA1A31BCB42D887EA323292AACD88', $response['correlationid']);
     }
 
-    public function testMultiClaimSubmissionAck(): void
+    public function testNomineeClaimSubmissionAck(): void
     {
-        $this->setMockHttpResponse('SubmitMultiAckResponse.xml');
+        $this->setMockHttpResponse('SubmitNomineeClaimAckResponse.xml');
         $this->gaService = $this->setUpService(); // Use client w/ mock queue.
 
         $this->gaService->setAuthorisedOfficial($this->officer);
@@ -428,9 +428,9 @@ class GiftAidTest extends TestCase
         $this->assertSame('9072983591062099772', $response['correlationid']);
     }
 
-    public function testMultiClaimSubmissionAckWithOfficialAndAgentOptionalFields(): void
+    public function testNomineeClaimSubmissionAckWithOfficialAndAgentOptionalFields(): void
     {
-        $this->setMockHttpResponse('SubmitMultiAckResponse.xml');
+        $this->setMockHttpResponse('SubmitNomineeClaimAckResponse.xml');
         $this->gaService = $this->setUpService(); // Use client w/ mock queue.
 
         $this->officer->setTitle('Mx');
@@ -457,9 +457,9 @@ class GiftAidTest extends TestCase
         $this->assertSame('9072983591062099772', $response['correlationid']);
     }
 
-    public function testMultiClaimSubmissionWithFirstDonationNamesMissing(): void
+    public function testNomineeClaimSubmissionWithFirstDonationNamesMissing(): void
     {
-        $this->setMockHttpResponse('SubmitMultiMissingNamesResponse.xml');
+        $this->setMockHttpResponse('SubmitNomineeClaimMissingNamesResponse.xml');
         $this->gaService = $this->setUpService(); // Use client w/ mock queue.
 
         // Provide identifier to trace donation errors, and give the 0th donation one by clearing
@@ -510,11 +510,11 @@ class GiftAidTest extends TestCase
         $this->assertEquals(['some-uuid-1234'], $response['donation_ids_with_errors']);
     }
 
-    public function testMultiClaimSubmissionWithMultipleDonationErrors(): void
+    public function testNomineeClaimSubmissionWithMultipleDonationErrors(): void
     {
         // We separately test this to be confident the correct errors map back
         // to the correct donation IDs.
-        $this->setMockHttpResponse('SubmitMultiMultipleErrorsResponse.xml');
+        $this->setMockHttpResponse('SubmitNomineeClaimMultipleErrorsResponse.xml');
         $this->gaService = $this->setUpService(); // Use client w/ mock queue.
 
         // Provide identifier to trace donation errors, and give the 0th donation one by clearing
@@ -588,9 +588,9 @@ class GiftAidTest extends TestCase
         $this->assertSame('A19FA1A31BCB42D887EA323292AACD88', $response['correlationid']);
     }
 
-    public function testMultiClaimPollSuccessAndResponseDataFormat(): void
+    public function testPollSuccessAndResponseDataFormat(): void
     {
-        $this->setMockHttpResponse('MultiClaimResponsePoll.xml');
+        $this->setMockHttpResponse('ClaimResponsePoll.xml');
         $this->gaService = $this->setUpService(); // Use client w/ mock queue.
 
         $response = $this->gaService->declarationResponsePoll(
