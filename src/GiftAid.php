@@ -766,7 +766,8 @@ class GiftAid extends GovTalk
             $package->writeElement('RefNo', $this->agentDetails['number']);
             $claimNo = $this->agentDetails['reference'] ?? uniqid();
             $package->writeElement('ClaimNo', $claimNo);
-            $package->writeElement('PayToAoN', 'no'); // Pay to charity.
+
+            // Note we never set `PayToAoN`. => HMRC always pay to the charity direct.
 
             $package->startElement('AoNID');
             if (empty($this->agentDetails['address']['postcode'])) {
