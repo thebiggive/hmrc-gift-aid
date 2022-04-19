@@ -761,11 +761,24 @@ class GiftAid extends GovTalk
         $package->startElement('R68');
 
         if ($this->isAgentMultiClaim()) {
-            $package->startElement('CollAgent');
-            $package->writeElement('AgentNo', $this->agentDetails['number']);
+            $package->startElement('AgtOrNom');
+            $package->writeElement('OrgName', $this->agentDetails['company']);
+            $package->writeElement('RefNo', $this->agentDetails['number']);
             $claimNo = $this->agentDetails['reference'] ?? uniqid();
             $package->writeElement('ClaimNo', $claimNo);
-            $package->endElement(); // CollAgent
+            $package->writeElement('PayToAoN', 'no'); // Pay to charity.
+
+            $package->startElement('AoNID');
+            if (empty($this->agentDetails['address']['postcode'])) {
+                $package->writeElement('Overseas', 'yes');
+            } else {
+                $package->writeElement('Postcode', $this->agentDetails['address']['postcode']);
+            }
+            $package->endElement(); // AoNID
+
+            $package->writeElement('Phone', $this->agentDetails['contact']['telephone']);
+
+            $package->endElement(); // AgtOrNom
         } else {
             $package->startElement('AuthOfficial');
             $package->startElement('OffName');
