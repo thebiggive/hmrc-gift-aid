@@ -6,7 +6,7 @@ class ClaimingOrganisation
 {
     private $name = '';
     private $hmrcRef = '';
-    private ?string $regulator;
+    private ?string $regulator = null;
     private $regNo = '';
     private $hasConnectedCharities = false;
     private $connectedCharities = [];
@@ -51,7 +51,7 @@ class ClaimingOrganisation
         $this->hmrcRef = $value;
     }
 
-    public function getRegulator()
+    public function getRegulator(): ?string
     {
         return $this->regulator;
     }

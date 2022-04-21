@@ -1036,7 +1036,11 @@ class GiftAid extends GovTalk
         } else {
             $package->writeElement('OtherReg', $org->getRegulator());
         }
-        $package->writeElement('RegNo', $org->getRegNo());
+
+        if ($org->getRegulator() !== null && !empty($org->getRegNo())) {
+            $package->writeElement('RegNo', $org->getRegNo());
+        }
+
         $package->endElement(); # Regulator
 
         $package->startElement('Repayment');
