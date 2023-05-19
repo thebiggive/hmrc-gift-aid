@@ -1,11 +1,13 @@
 language: php
+dist: focal # Ubuntu 20.04 LTS
 
 php:
- - "7.4"
  - "8.0"
  - "8.1"
+ - "8.2"
 
 before_script:
+ - sudo apt-get install libonig5 # https://blog.futtta.be/2023/01/24/adding-php-8-2-in-travis-tests/
  - composer self-update
  - composer --version
  - composer install -n --dev --prefer-source
