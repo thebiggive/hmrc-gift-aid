@@ -42,6 +42,22 @@ class IndividualTest extends TestCase
         $this->assertEquals($this->individual->getIsOverseas(), 'no');
     }
 
+    public function testIndividualCreationWithLongNameAndAddressValues()
+    {
+        $testIndividual = new Individual(
+            title: '',
+            name: str_repeat('a', 36),
+            surname: str_repeat('b', 36),
+            houseNum: str_repeat('c', 41),
+            postcode: 'N11XX',
+            phone: '07777 777777',
+        );
+
+        $this->assertEquals(35, strlen($testIndividual->getForename()));
+        $this->assertEquals(35, strlen($testIndividual->getSurname()));
+        $this->assertEquals(40, strlen($testIndividual->getHouseNum()));
+    }
+
     public function testForeignIndividualCreation()
     {
         $this->assertEquals($this->foreign->getTitle(), 'Ds');

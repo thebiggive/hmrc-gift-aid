@@ -15,12 +15,13 @@ class Individual
     public function __construct($title, $name, $surname, $phone, $houseNum, $postcode, $overseas = false)
     {
         $this->title      = $title;
-        $this->surname    = $surname;
-        $this->forename   = $name;
         $this->phone      = $phone;
-        $this->houseNum   = $houseNum;
         $this->postcode   = $postcode;
         $this->isOverseas = $overseas;
+
+        $this->setForename($name);
+        $this->setSurname($surname);
+        $this->setHouseNum($houseNum);
     }
 
     public function getTitle()
@@ -40,7 +41,7 @@ class Individual
 
     public function setSurname($value)
     {
-        $this->surname = $value;
+        $this->surname = substr($value, 0, 35);
     }
 
     public function getForename()
@@ -50,7 +51,7 @@ class Individual
 
     public function setForename($value)
     {
-        $this->forename = $value;
+        $this->forename = substr($value, 0, 35);
     }
 
     public function getPhone()
