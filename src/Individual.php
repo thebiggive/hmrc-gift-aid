@@ -41,7 +41,7 @@ class Individual
 
     public function setSurname($value)
     {
-        $this->surname = substr($value, 0, 35);
+        $this->surname = mb_substr($value, 0, 35);
     }
 
     public function getForename()
@@ -51,7 +51,7 @@ class Individual
 
     public function setForename($value)
     {
-        $this->forename = substr($value, 0, 35);
+        $this->forename = mb_substr($value, 0, 35);
     }
 
     public function getPhone()
@@ -71,7 +71,7 @@ class Individual
 
     public function setHouseNum($value)
     {
-        $this->houseNum = substr($value, 0, 40);
+        $this->houseNum = mb_substr($value, 0, 40);
     }
 
     public function getPostcode()

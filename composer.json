@@ -39,6 +39,7 @@
     "require": {
         "php": "^8.0",
         "ext-dom": "*",
+        "ext-mbstring": "*",
         "ext-simplexml": "*",
         "ext-xmlwriter": "*",
         "ext-zlib": "*",
