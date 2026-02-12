@@ -1220,11 +1220,22 @@ class GiftAid extends GovTalk
     }
 
     /**
-     * @param array[] $businessErrors each possibly including a 'donation_id' key.
+     * @param array[]|null $businessErrors each possibly including a 'donation_id' key.
      * @return string[] Donation IDs
      */
-    private function getDistinctErroringDonations(array $businessErrors): array
+    private function getDistinctErroringDonations(?array $businessErrors): array
     {
+        if ($businessErrors === null) {
+            // This is unexpected but can happen if upstream error parsing returns an errors payload
+            // without a `business` key (or with a null value).
+            $this->logger->warning('GiftAid business errors were null when extracting donation IDs', [
+                'has_donation_id_map' => !empty($this->donationIdMap),
+                'response_correlation_id' => $this->getResponseCorrelationId(),
+            ]);
+
+            return [];
+        }
+
         if (empty($this->donationIdMap)) {
             return []; // Input should always be donation-ID-free when there's no map values.
         }
