@@ -818,7 +818,21 @@ class GiftAid extends GovTalk
         // Send the message and deal with the response...
         $this->setMessageBody($package);
 
-        if ($this->sendMessage() && ($this->responseHasErrors() === false)) {
+        // If the underlying transport failed, php-govtalk can leave us with no parsed response.
+        // Exit quietly and let the caller detect the failure via missing correlationId/errors.
+        $messageSent = $this->sendMessage();
+        if (!$messageSent || $this->fullResponseObject === null) {
+            $returnable = [];
+            $returnable['claim_data_xml']     = $claimDataXml;
+            $returnable['submission_request'] = $this->fullRequestString;
+
+            $this->logger->info($this->fullRequestString, ['gift_aid_message' => 'request']);
+            $this->logger->info($this->fullResponseString, ['gift_aid_message' => 'response']);
+
+            return $returnable;
+        }
+
+        if ($messageSent && ($this->responseHasErrors() === false)) {
             $returnable                  = $this->getResponseEndpoint();
             $returnable['correlationid'] = $this->getResponseCorrelationId();
         } else {
@@ -1157,6 +1171,12 @@ class GiftAid extends GovTalk
 
     public function getResponseErrors()
     {
+        // If there's no parsed response (e.g. endpoint unreachable), don't try to read response XML.
+        // Return the parent errors payload (likely empty) and avoid property access warnings.
+        if ($this->fullResponseObject === null) {
+            return parent::getResponseErrors();
+        }
+
         $govTalkErrors = parent::getResponseErrors();
 
         foreach ($govTalkErrors['business'] as $b_index => $b_err) {
