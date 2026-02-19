@@ -514,9 +514,11 @@ class GiftAid extends GovTalk
      *   'title'            => (?string)
      *   'first_name'       => (string)
      *   'last_name'        => (string)
-     *   'house_no'         => (string) If overseas, should actually be as full an
+     *   'house_no'         => (string) Should actually be as full an
      *                                  address as possible while being truncated
-     *                                  at 40 characters. The specific country is
+     *                                  at 40 characters. Based on new info from HMRC
+     *                                  2026 it sounds like that should happen for UK as
+     *                                  well as overseas addresses. The specific country is
      *                                  not required to fit within this, so probably
      *                                  prioritise first address line(s).
      *   'postcode'         => (?string) Must be a UK postcode for any UK address
